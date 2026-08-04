@@ -126,4 +126,18 @@ icons/                        192 / 512 / maskable
 .github/workflows/pages.yml   deploy on push to main
 ```
 
-MIT licensed.
+## License
+
+This project is licensed under the **PolyForm Noncommercial License 1.0.0**.
+
+You are free to:
+
+- use the software for noncommercial purposes,
+- study and modify the source code,
+- redistribute it under the license terms.
+
+Commercial use is **not permitted** without a separate written agreement from the copyright holder.
+
+See the `LICENSE` file for the complete license text.
+
+For commercial licensing, contact: mattiroma.98@gmail.com
