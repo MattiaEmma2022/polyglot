@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#14121c">
+<meta name="description" content="A code-switching trainer for multilinguals. Solve challenges built from sentences that mix your languages.">
+<title>Seam — a code-switching trainer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   SEAM — design tokens
+   Base is quiet on purpose: the six language colours are the
+   entire visual identity, so nothing else competes with them.
+   ============================================================ */
+:root{
+  --ink:#14121c;          /* deep ink, blue-violet cast */
+  --ink-2:#1d1a28;        /* raised card */
+  --ink-3:#262232;        /* pressed / inset */
+  --line:#332e44;         /* hairline */
+  --paper:#f4f0e6;        /* warm off-white text */
+  --paper-dim:#a29bb4;    /* secondary text */
+  --paper-faint:#6b6480;  /* tertiary */
+  --good:#5ddc9a;
+  --bad:#ff6f6f;
+
+  --l-en:#b478f5;
+  --l-fr:#5b8cff;
+  --l-it:#3ecf8e;
+  --l-de:#f0b429;
+  --l-es:#f2604b;
+  --l-ro:#2fd0d6;
+
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"Newsreader",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Courier New",monospace;
+
+  --r:14px;
+  --pad:18px;
+  --tap:52px;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--ink);color:var(--paper);
+  font-family:var(--body);font-size:17px;line-height:1.45;
+  overscroll-behavior:none;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--paper);outline-offset:3px;border-radius:6px}
+
+.app{
+  display:flex;flex-direction:column;
+  height:100dvh;max-width:520px;margin:0 auto;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+.screen{display:none;flex:1;min-height:0;flex-direction:column}
+.screen.on{display:flex}
+
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--paper-faint);
+}
+
+/* ---------- signature element: the seam ribbon ---------- */
+/* A sentence's language structure, read at a glance. One
+   segment per word, coloured by that word's language.       */
+.ribbon{display:flex;gap:2px;height:5px;border-radius:99px;overflow:hidden}
+.ribbon i{flex:1;background:var(--line);transform-origin:left;animation:seam .34s cubic-bezier(.2,.8,.3,1) both}
+@keyframes seam{from{transform:scaleX(0);opacity:0}to{transform:scaleX(1);opacity:1}}
+
+/* ================= SETUP ================= */
+.setup{overflow-y:auto;padding:26px var(--pad) 0}
+.wordmark{
+  font-family:var(--display);font-weight:800;
+  font-size:clamp(46px,17vw,74px);line-height:.86;letter-spacing:-.045em;
+  margin:6px 0 0;
+}
+/* the wordmark itself code-switches */
+.wordmark span:nth-child(1){color:var(--l-fr)}
+.wordmark span:nth-child(2){color:var(--l-de)}
+.wordmark span:nth-child(3){color:var(--l-it)}
+.wordmark span:nth-child(4){color:var(--l-es)}
+.tagline{color:var(--paper-dim);margin:14px 0 26px;font-size:17px;max-width:34ch}
+.tagline em{font-style:italic;color:var(--paper)}
+
+.block{margin-bottom:26px}
+.block h2{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--paper-faint);margin:0 0 12px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.block h2 b{font-weight:500;letter-spacing:.06em;text-transform:none;color:var(--paper-dim)}
+
+.langs{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.lang{
+  display:flex;align-items:center;gap:11px;min-height:var(--tap);
+  padding:11px 13px;background:var(--ink-2);border:1px solid var(--line);
+  border-radius:var(--r);text-align:left;transition:background .15s,border-color .15s;
+}
+.lang .dot{width:11px;height:11px;border-radius:99px;background:var(--c);flex:none;transition:box-shadow .18s}
+.lang .nm{font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:-.01em}
+.lang .code{font-family:var(--mono);font-size:10px;color:var(--paper-faint);margin-left:auto;letter-spacing:.1em}
+.lang[aria-pressed="true"]{background:color-mix(in srgb,var(--c) 15%,var(--ink-2));border-color:var(--c)}
+.lang[aria-pressed="true"] .dot{box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 26%,transparent)}
+.lang[aria-pressed="true"] .code{color:var(--c)}
+
+.tiers{display:flex;flex-direction:column;gap:8px}
+.tier{
+  display:flex;align-items:baseline;gap:12px;padding:13px 15px;min-height:var(--tap);
+  background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);text-align:left;
+}
+.tier b{font-family:var(--display);font-weight:600;font-size:16px}
+.tier small{color:var(--paper-dim);font-size:14px;margin-left:auto;text-align:right;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.tier[aria-pressed="true"]{border-color:var(--paper-dim);background:var(--ink-3)}
+
+.footbar{
+  padding:14px var(--pad) calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--ink) 62%,transparent);
+  position:sticky;bottom:0;
+}
+.cta{
+  width:100%;min-height:56px;border-radius:var(--r);
+  background:var(--paper);color:var(--ink);
+  font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:-.01em;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:transform .1s,opacity .15s;
+}
+.cta:active{transform:scale(.985)}
+.cta[disabled]{opacity:.32;cursor:not-allowed}
+.hint{font-family:var(--mono);font-size:11px;color:var(--paper-faint);text-align:center;margin:10px 0 0;letter-spacing:.04em}
+
+/* ================= PLAY ================= */
+.top{padding:12px var(--pad) 0}
+.toprow{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.quit{font-family:var(--mono);font-size:11px;color:var(--paper-faint);letter-spacing:.12em;padding:6px 2px}
+.progress{font-family:var(--mono);font-size:11px;color:var(--paper-dim);letter-spacing:.12em;margin-left:auto}
+.score{font-family:var(--display);font-weight:800;font-size:19px;letter-spacing:-.02em;min-width:58px;text-align:right}
+.streak{font-family:var(--mono);font-size:10px;color:var(--l-de);letter-spacing:.08em}
+.clock{height:3px;background:var(--ink-3);border-radius:99px;overflow:hidden;margin-top:10px}
+.clock i{display:block;height:100%;background:var(--paper-dim);width:100%;border-radius:99px}
+.clock.warn i{background:var(--bad)}
+
+.stage{flex:1;min-height:0;overflow-y:auto;padding:22px var(--pad) 8px}
+.kind{margin:0 0 6px}
+.ask{font-family:var(--display);font-weight:600;font-size:22px;line-height:1.2;letter-spacing:-.02em;margin:0 0 20px;max-width:30ch}
+.ask .q{color:var(--paper-dim);font-weight:600}
+
+.card{background:var(--ink-2);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card + .card{margin-top:12px}
+
+/* words with a language identity */
+.w{
+  font-family:var(--body);font-size:22px;line-height:1.35;
+  color:var(--paper);position:relative;white-space:nowrap;
+}
+.w.tinted{color:var(--wc)}
+.sent{display:flex;flex-wrap:wrap;gap:5px 9px;align-items:flex-end}
+.sent .w{padding-bottom:5px;border-bottom:2px solid var(--wc,var(--line))}
+.gloss{font-family:var(--body);font-style:italic;color:var(--paper-dim);font-size:17px;margin:14px 0 0}
+
+/* build slots */
+.slots{display:flex;flex-wrap:wrap;gap:10px}
+.slot{
+  min-height:48px;min-width:78px;padding:6px 12px 5px;
+  border:1.5px dashed var(--sc);border-radius:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+  background:color-mix(in srgb,var(--sc) 9%,transparent);transition:border-style .15s;
+}
+.slot.full{border-style:solid}
+.slot .tag{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--sc)}
+.slot .val{font-family:var(--body);font-size:20px;color:var(--paper)}
+.slot .val.empty{color:color-mix(in srgb,var(--sc) 55%,transparent)}
+.slot.cur{box-shadow:0 0 0 3px color-mix(in srgb,var(--sc) 28%,transparent)}
+
+.bank{display:flex;flex-wrap:wrap;gap:9px;margin-top:4px}
+.chip{
+  min-height:46px;padding:9px 15px;border-radius:11px;
+  background:var(--ink-2);border:1px solid var(--line);
+  font-family:var(--body);font-size:19px;color:var(--paper);
+  display:flex;align-items:center;gap:9px;transition:transform .1s,opacity .15s;
+}
+.chip:active{transform:scale(.96)}
+.chip .flag{width:8px;height:8px;border-radius:99px;background:var(--cc);flex:none}
+.chip.used{opacity:.28;pointer-events:none}
+.chip.wide{width:100%;justify-content:flex-start;text-align:left;white-space:normal;line-height:1.3}
+.chip.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--ink-2))}
+.chip.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--ink-2))}
+
+.opts{display:flex;flex-direction:column;gap:9px}
+.langchips{display:flex;flex-wrap:wrap;gap:9px}
+.langchip{
+  min-height:46px;padding:0 16px;border-radius:11px;background:var(--ink-2);
+  border:1px solid var(--line);display:flex;align-items:center;gap:9px;
+  font-family:var(--display);font-weight:600;font-size:15px;
+}
+.langchip .flag{width:9px;height:9px;border-radius:99px;background:var(--cc)}
+
+/* verdict */
+.verdict{
+  border-top:1px solid var(--line);
+  padding:14px var(--pad) calc(14px + env(safe-area-inset-bottom));
+  background:var(--ink);
+}
+.vhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.vhead b{font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:-.01em}
+.vhead .pts{font-family:var(--mono);font-size:12px;color:var(--paper-dim);margin-left:auto}
+.vhead.ok b{color:var(--good)}
+.vhead.no b{color:var(--bad)}
+.why{color:var(--paper-dim);font-size:16px;margin:0 0 12px}
+.why b{color:var(--paper);font-weight:500;font-style:normal}
+
+/* ================= RESULTS ================= */
+.res{overflow-y:auto;padding:26px var(--pad) 0}
+.big{font-family:var(--display);font-weight:800;font-size:64px;line-height:.9;letter-spacing:-.04em;margin:4px 0 2px}
+.sub{color:var(--paper-dim);margin:0 0 26px}
+.bars{display:flex;flex-direction:column;gap:13px}
+.bar b{font-family:var(--display);font-weight:600;font-size:15px}
+.bar .row{display:flex;align-items:baseline;gap:9px;margin-bottom:6px}
+.bar .pct{font-family:var(--mono);font-size:12px;color:var(--paper-dim);margin-left:auto}
+.bar .track{height:7px;background:var(--ink-3);border-radius:99px;overflow:hidden}
+.bar .fill{height:100%;background:var(--bc);border-radius:99px;transition:width .5s cubic-bezier(.2,.8,.3,1)}
+.empty{color:var(--paper-faint);font-size:15px}
+.ghost{
+  width:100%;min-height:50px;border-radius:var(--r);border:1px solid var(--line);
+  font-family:var(--display);font-weight:600;font-size:15px;color:var(--paper-dim);
+  display:flex;align-items:center;justify-content:center;margin-top:10px;
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;transition-duration:.001s!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ==================== SETUP ==================== -->
+<section id="s-setup" class="screen on">
+  <div class="setup">
+    <p class="eyebrow">A code-switching trainer</p>
+    <h1 class="wordmark"><span>S</span><span>e</span><span>a</span><span>m</span></h1>
+    <p class="tagline">Sentences built from all of your languages at once. Read them, tag them, <em>finish</em> them.</p>
+
+    <div class="block">
+      <h2>Your languages <b id="count">0 of 6</b></h2>
+      <div class="langs" id="langs"></div>
+    </div>
+
+    <div class="block">
+      <h2>Pressure</h2>
+      <div class="tiers" id="tiers"></div>
+    </div>
+  </div>
+  <div class="footbar">
+    <button class="cta" id="start" disabled>Start a round</button>
+    <p class="hint" id="setup-hint">Pick at least two languages</p>
+  </div>
+</section>
+
+<!-- ==================== PLAY ==================== -->
+<section id="s-play" class="screen">
+  <div class="top">
+    <div class="toprow">
+      <button class="quit" id="quit">END</button>
+      <span class="progress" id="prog">01 / 10</span>
+      <div>
+        <div class="score" id="score">0</div>
+        <div class="streak" id="streak">&nbsp;</div>
+      </div>
+    </div>
+    <div class="ribbon" id="ribbon"></div>
+    <div class="clock" id="clock"><i></i></div>
+  </div>
+  <div class="stage" id="stage"></div>
+  <div class="verdict" id="verdict" hidden aria-live="polite"></div>
+</section>
+
+<!-- ==================== RESULTS ==================== -->
+<section id="s-res" class="screen">
+  <div class="res">
+    <p class="eyebrow">Round complete</p>
+    <div class="big" id="final">0</div>
+    <p class="sub" id="final-sub"></p>
+
+    <div class="block">
+      <h2>Accuracy by language</h2>
+      <div class="bars" id="bars"></div>
+    </div>
+
+    <div class="block">
+      <h2>All time</h2>
+      <p class="sub" id="lifetime" style="margin:0"></p>
+    </div>
+  </div>
+  <div class="footbar">
+    <button class="cta" id="again">Play the same set</button>
+    <button class="ghost" id="reset">Change languages</button>
+  </div>
+</section>
+
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   0. STORAGE — tries localStorage, falls back to memory so the
+   app never breaks in a sandboxed frame or from file://
+   ============================================================ */
+const store = (() => {
+  let mem = {};
+  let ok = false;
+  try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); ok = true; } catch (e) { ok = false; }
+  return {
+    get(k, d) {
+      try { const v = ok ? localStorage.getItem(k) : mem[k]; return v == null ? d : JSON.parse(v); }
+      catch (e) { return d; }
+    },
+    set(k, v) {
+      try { const s = JSON.stringify(v); if (ok) localStorage.setItem(k, s); else mem[k] = s; }
+      catch (e) { /* nothing to do; stats are non-essential */ }
+    }
+  };
+})();
+
+/* ============================================================
+   1. LANGUAGES
+   ============================================================ */
+const LANGS = {
+  fr: { name: "French",   color: "var(--l-fr)" },
+  it: { name: "Italian",  color: "var(--l-it)" },
+  de: { name: "German",   color: "var(--l-de)" },
+  es: { name: "Spanish",  color: "var(--l-es)" },
+  en: { name: "English",  color: "var(--l-en)" },
+  ro: { name: "Romanian", color: "var(--l-ro)" }
+};
+const LCODES = Object.keys(LANGS);
+
+/* ============================================================
+   2. LEXICON
+   Every concept carries its form in all six languages with the
+   definite article already attached, so no agreement errors can
+   leak out of the generator. German objects use the accusative
+   via the optional `acc` field.
+   ============================================================ */
+const NOUNS = [
+  { id:"cat",     an:1, en:"the cat",       fr:"le chat",     it:"il gatto",     de:"die Katze",   es:"el gato",      ro:"pisica" },
+  { id:"dog",     an:1, en:"the dog",       fr:"le chien",    it:"il cane",      de:"der Hund",    es:"el perro",     ro:"câinele", acc:"den Hund" },
+  { id:"child",   an:1, en:"the child",     fr:"l'enfant",    it:"il bambino",   de:"das Kind",    es:"el niño",      ro:"copilul" },
+  { id:"woman",   an:1, en:"the woman",     fr:"la femme",    it:"la donna",     de:"die Frau",    es:"la mujer",     ro:"femeia" },
+  { id:"man",     an:1, en:"the man",       fr:"l'homme",     it:"l'uomo",       de:"der Mann",    es:"el hombre",    ro:"bărbatul", acc:"den Mann" },
+  { id:"teacher", an:1, en:"the teacher",   fr:"le prof",     it:"il maestro",   de:"der Lehrer",  es:"el profesor",  ro:"profesorul", acc:"den Lehrer" },
+  { id:"friend",  an:1, en:"the friend",    fr:"l'ami",       it:"l'amico",      de:"der Freund",  es:"el amigo",     ro:"prietenul", acc:"den Freund" },
+
+  { id:"bread",   en:"the bread",     fr:"le pain",      it:"il pane",       de:"das Brot",     es:"el pan",        ro:"pâinea" },
+  { id:"cheese",  en:"the cheese",    fr:"le fromage",   it:"il formaggio",  de:"der Käse",     es:"el queso",      ro:"brânza", acc:"den Käse" },
+  { id:"apple",   en:"the apple",     fr:"la pomme",     it:"la mela",       de:"der Apfel",    es:"la manzana",    ro:"mărul", acc:"den Apfel" },
+  { id:"water",   en:"the water",     fr:"l'eau",        it:"l'acqua",       de:"das Wasser",   es:"el agua",       ro:"apa" },
+  { id:"wine",    en:"the wine",      fr:"le vin",       it:"il vino",       de:"der Wein",     es:"el vino",       ro:"vinul", acc:"den Wein" },
+  { id:"coffee",  en:"the coffee",    fr:"le café",      it:"il caffè",      de:"der Kaffee",   es:"el café",       ro:"cafeaua", acc:"den Kaffee" },
+  { id:"book",    en:"the book",      fr:"le livre",     it:"il libro",      de:"das Buch",     es:"el libro",      ro:"cartea" },
+  { id:"letter",  en:"the letter",    fr:"la lettre",    it:"la lettera",    de:"der Brief",    es:"la carta",      ro:"scrisoarea", acc:"den Brief" },
+  { id:"paper",   en:"the newspaper", fr:"le journal",   it:"il giornale",   de:"die Zeitung",  es:"el periódico",  ro:"ziarul" },
+  { id:"song",    en:"the song",      fr:"la chanson",   it:"la canzone",    de:"das Lied",     es:"la canción",    ro:"cântecul" },
+  { id:"dream",   en:"the dream",     fr:"le rêve",      it:"il sogno",      de:"der Traum",    es:"el sueño",      ro:"visul", acc:"den Traum" },
+  { id:"key",     en:"the key",       fr:"la clé",       it:"la chiave",     de:"der Schlüssel",es:"la llave",      ro:"cheia", acc:"den Schlüssel" },
+  { id:"money",   en:"the money",     fr:"l'argent",     it:"il denaro",     de:"das Geld",     es:"el dinero",     ro:"banii" },
+  { id:"car",     en:"the car",       fr:"la voiture",   it:"la macchina",   de:"das Auto",     es:"el coche",      ro:"mașina" },
+  { id:"house",   en:"the house",     fr:"la maison",    it:"la casa",       de:"das Haus",     es:"la casa",       ro:"casa" },
+  { id:"door",    en:"the door",      fr:"la porte",     it:"la porta",      de:"die Tür",      es:"la puerta",     ro:"ușa" },
+  { id:"window",  en:"the window",    fr:"la fenêtre",   it:"la finestra",   de:"das Fenster",  es:"la ventana",    ro:"fereastra" },
+  { id:"school",  en:"the school",    fr:"l'école",      it:"la scuola",     de:"die Schule",   es:"la escuela",    ro:"școala" },
+  { id:"city",    en:"the city",      fr:"la ville",     it:"la città",      de:"die Stadt",    es:"la ciudad",     ro:"orașul" },
+  { id:"flower",  en:"the flower",    fr:"la fleur",     it:"il fiore",      de:"die Blume",    es:"la flor",       ro:"floarea" },
+  { id:"mountain",en:"the mountain",  fr:"la montagne",  it:"la montagna",   de:"der Berg",     es:"la montaña",    ro:"muntele", acc:"den Berg" },
+  { id:"sea",     en:"the sea",       fr:"la mer",       it:"il mare",       de:"das Meer",     es:"el mar",        ro:"marea" },
+  { id:"sun",     en:"the sun",       fr:"le soleil",    it:"il sole",       de:"die Sonne",    es:"el sol",        ro:"soarele" },
+  { id:"night",   en:"the night",     fr:"la nuit",      it:"la notte",      de:"die Nacht",    es:"la noche",      ro:"noaptea" }
+];
+
+/* third person singular, present */
+const VERBS = [
+  { id:"eat",    en:"eats",    fr:"mange",   it:"mangia",     de:"isst",      es:"come",       ro:"mănâncă",  obj:["bread","cheese","apple"] },
+  { id:"drink",  en:"drinks",  fr:"boit",    it:"beve",       de:"trinkt",    es:"bebe",       ro:"bea",      obj:["water","wine","coffee"] },
+  { id:"read",   en:"reads",   fr:"lit",     it:"legge",      de:"liest",     es:"lee",        ro:"citește",  obj:["book","letter","paper"] },
+  { id:"write",  en:"writes",  fr:"écrit",   it:"scrive",     de:"schreibt",  es:"escribe",    ro:"scrie",    obj:["letter","book","song"] },
+  { id:"see",    en:"sees",    fr:"voit",    it:"vede",       de:"sieht",     es:"ve",         ro:"vede",     obj:["sea","sun","mountain","city","flower","dog","cat","house"] },
+  { id:"buy",    en:"buys",    fr:"achète",  it:"compra",     de:"kauft",     es:"compra",     ro:"cumpără",  obj:["bread","book","car","house","flower","coffee","paper","wine"] },
+  { id:"open",   en:"opens",   fr:"ouvre",   it:"apre",       de:"öffnet",    es:"abre",       ro:"deschide", obj:["door","window","book","letter"] },
+  { id:"close",  en:"closes",  fr:"ferme",   it:"chiude",     de:"schließt",  es:"cierra",     ro:"închide",  obj:["door","window","book"] },
+  { id:"find",   en:"finds",   fr:"trouve",  it:"trova",      de:"findet",    es:"encuentra",  ro:"găsește",  obj:["key","money","house","book","dog","cat"] },
+  { id:"want",   en:"wants",   fr:"veut",    it:"vuole",      de:"will",      es:"quiere",     ro:"vrea",     obj:["coffee","water","money","car","bread","wine","apple"] },
+  { id:"seek",   en:"seeks",   fr:"cherche", it:"cerca",      de:"sucht",     es:"busca",      ro:"caută",    obj:["key","money","dog","cat","house","book"] },
+  { id:"love",   en:"loves",   fr:"aime",    it:"ama",        de:"liebt",     es:"ama",        ro:"iubește",  obj:["sea","sun","city","night","dog","cat","school"] },
+  { id:"forget", en:"forgets", fr:"oublie",  it:"dimentica",  de:"vergisst",  es:"olvida",     ro:"uită",     obj:["key","book","letter","money","dream"] },
+  { id:"hear",   en:"hears",   fr:"entend", it:"sente",       de:"hört",      es:"oye",        ro:"aude",     obj:["song","sea","dog"] },
+  { id:"bring",  en:"brings",  fr:"apporte", it:"porta",      de:"bringt",    es:"trae",       ro:"aduce",    obj:["bread","water","coffee","book","flower","key","letter","wine"] }
+];
+
+const ADVS = [
+  { id:"quickly", en:"quickly", fr:"rapidement",  it:"rapidamente", de:"schnell", es:"rápidamente", ro:"repede" },
+  { id:"slowly",  en:"slowly",  fr:"lentement",   it:"lentamente",  de:"langsam", es:"lentamente",  ro:"încet" },
+  { id:"always",  en:"always",  fr:"toujours",    it:"sempre",      de:"immer",   es:"siempre",     ro:"mereu", pre:1 },
+  { id:"today",   en:"today",   fr:"aujourd'hui", it:"oggi",        de:"heute",   es:"hoy",         ro:"azi" },
+  { id:"often",   en:"often",   fr:"souvent",     it:"spesso",      de:"oft",     es:"a menudo",    ro:"des", pre:1 },
+  { id:"again",   en:"again",   fr:"encore",      it:"ancora",      de:"wieder",  es:"otra vez",    ro:"iarăși" },
+  { id:"happily", en:"happily", fr:"joyeusement", it:"allegramente",de:"fröhlich",es:"alegremente", ro:"bucuros" },
+  { id:"here",    en:"here",    fr:"ici",         it:"qui",         de:"hier",    es:"aquí",        ro:"aici" }
+];
+
+/* Real false friends. `lang` is the language being asked about,
+   `trap` is the language whose look-alike causes the mistake.  */
+const FRIENDS = [
+  { w:"burro",       lang:"it", trap:"es", right:"butter",             wrong:["a donkey","a bureau","a butterfly"], note:"Italian burro is butter. Spanish burro is a donkey." },
+  { w:"prost",       lang:"ro", trap:"de", right:"stupid",             wrong:["cheers","first","proud"],            note:"Romanian prost means stupid. German Prost is a toast." },
+  { w:"Gift",        lang:"de", trap:"en", right:"poison",             wrong:["a present","a talent","a receipt"],  note:"German Gift is poison. The English present is das Geschenk." },
+  { w:"salir",       lang:"es", trap:"fr", right:"to go out",          wrong:["to make dirty","to greet","to salt"],note:"Spanish salir is to go out. French salir is to make something dirty." },
+  { w:"sensible",    lang:"fr", trap:"en", right:"sensitive",          wrong:["reasonable","noticeable","gentle"],  note:"French sensible is sensitive. English sensible is raisonnable." },
+  { w:"actuel",      lang:"fr", trap:"en", right:"current",            wrong:["real","factual","topical"],          note:"French actuel means current. English actual is réel or véritable." },
+  { w:"pain",        lang:"fr", trap:"en", right:"bread",              wrong:["suffering","a window pane","effort"],note:"French pain is bread. English pain is douleur." },
+  { w:"lecture",     lang:"fr", trap:"en", right:"reading",            wrong:["a talk","a scolding","a lectern"],   note:"French lecture is reading. An English lecture is un cours." },
+  { w:"journée",     lang:"fr", trap:"en", right:"a day",              wrong:["a journey","a diary","a newspaper"], note:"French journée is a day. An English journey is un voyage." },
+  { w:"éxito",       lang:"es", trap:"en", right:"success",            wrong:["an exit","excitement","an excerpt"],  note:"Spanish éxito is success. An exit is una salida." },
+  { w:"largo",       lang:"es", trap:"en", right:"long",               wrong:["large","generous","slow"],           note:"Spanish largo is long. English large is grande." },
+  { w:"embarazada",  lang:"es", trap:"en", right:"pregnant",           wrong:["embarrassed","stuck","confused"],    note:"Spanish embarazada is pregnant. Embarrassed is avergonzada." },
+  { w:"ropa",        lang:"es", trap:"it", right:"clothes",            wrong:["stuff","rope","laundry soap"],       note:"Spanish ropa is clothes. Italian roba is stuff." },
+  { w:"librería",    lang:"es", trap:"en", right:"a bookshop",         wrong:["a library","a bookshelf","a reading room"], note:"Spanish librería sells books. A library is una biblioteca." },
+  { w:"caldo",       lang:"it", trap:"es", right:"hot",                wrong:["broth","cold","spicy"],              note:"Italian caldo is hot. Spanish caldo is broth." },
+  { w:"morbido",     lang:"it", trap:"en", right:"soft",               wrong:["morbid","gloomy","damp"],            note:"Italian morbido is soft. English morbid is morboso." },
+  { w:"fermata",     lang:"it", trap:"en", right:"a bus stop",         wrong:["a pause in music","a farm","a closure"], note:"Italian fermata is a stop, as in a bus stop." },
+  { w:"attualmente", lang:"it", trap:"en", right:"currently",          wrong:["actually","eventually","truly"],     note:"Italian attualmente is currently. English actually is in realtà." },
+  { w:"bekommen",    lang:"de", trap:"en", right:"to receive",         wrong:["to become","to arrive","to belong"], note:"German bekommen is to receive. To become is werden." },
+  { w:"bald",        lang:"de", trap:"en", right:"soon",               wrong:["hairless","bold","brave"],           note:"German bald means soon. English bald is kahl." },
+  { w:"Rat",         lang:"de", trap:"en", right:"advice",             wrong:["a rat","a council seat","a rate"],   note:"German Rat is advice. The animal is eine Ratte." },
+  { w:"Chef",        lang:"de", trap:"en", right:"a boss",             wrong:["a cook","a waiter","a chief of state"], note:"German Chef is a boss. A cook is ein Koch." },
+  { w:"Handy",       lang:"de", trap:"en", right:"a mobile phone",     wrong:["a tool","a helper","a handle"],      note:"German Handy is a mobile phone." },
+  { w:"cald",        lang:"ro", trap:"en", right:"warm",               wrong:["cold","calm","called"],              note:"Romanian cald is warm. English cold is rece." },
+  { w:"mașină",      lang:"ro", trap:"en", right:"a car",              wrong:["a machine","an engine","a factory"], note:"Romanian mașină is normally a car." },
+  { w:"carte",       lang:"ro", trap:"es", right:"a book",             wrong:["a letter","a map","a card"],         note:"Romanian carte is a book. Spanish carta is a letter." },
+  { w:"roman",       lang:"ro", trap:"en", right:"a novel",            wrong:["a Roman","romance","a rumour"],      note:"Romanian roman is a novel." },
+  { w:"brav",        lang:"ro", trap:"en", right:"well-behaved",       wrong:["brave","boastful","strong"],         note:"Romanian brav here means well-behaved rather than brave." },
+  { w:"eventually",  lang:"en", trap:"de", right:"in the end",         wrong:["possibly","immediately","regularly"],note:"English eventually is in the end. German eventuell is possibly." },
+  { w:"preservative",lang:"en", trap:"it", right:"a food additive",    wrong:["a condom","a jam","a safeguard"],    note:"English preservative is a food additive. Italian preservativo is a condom." }
+];
+
+/* ============================================================
+   3. HELPERS
+   ============================================================ */
+const $ = (s) => document.querySelector(s);
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const byId = (arr, id) => arr.find((x) => x.id === id);
+const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt != null) n.textContent = txt; return n; };
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/* German objects take the accusative when one exists */
+function form(concept, lang, role) {
+  if (lang === "de" && role === "obj" && concept.acc) return concept.acc;
+  return concept[lang];
+}
+
+/* ============================================================
+   4. STATE
+   ============================================================ */
+const TIERS = [
+  { id:"casual",   name:"Casual",   note:"no clock · 2 languages per sentence", time:0,  maxL:2 },
+  { id:"standard", name:"Standard", note:"30 seconds · 3 languages",            time:30, maxL:3 },
+  { id:"brutal",   name:"Brutal",   note:"15 seconds · every language you pick",time:15, maxL:6 }
+];
+
+const S = {
+  langs: store.get("seam.langs", []).filter((l) => LCODES.includes(l)),
+  tier: store.get("seam.tier", "standard"),
+  queue: [],
+  i: 0,
+  score: 0,
+  streak: 0,
+  correct: 0,
+  perLang: {},          // code -> {hit, tot}
+  timer: null,
+  left: 0,
+  answered: false,
+  cur: null
+};
+const TOTAL = 10;
+const tier = () => TIERS.find((t) => t.id === S.tier);
+
+function mark(lang, hit) {
+  if (!lang || !LANGS[lang]) return;
+  const r = (S.perLang[lang] = S.perLang[lang] || { hit: 0, tot: 0 });
+  r.tot++; if (hit) r.hit++;
+}
+
+/* ============================================================
+   5. SENTENCE GENERATOR
+   ============================================================ */
+function makeSentence() {
+  const langs = S.langs;
+  const maxL = Math.min(tier().maxL, langs.length);
+  const withAdv = Math.random() < 0.6;
+
+  const verb = pick(VERBS);
+  const subj = pick(NOUNS.filter((n) => n.an));
+  const obj = byId(NOUNS, pick(verb.obj));
+  const adv = withAdv ? pick(ADVS) : null;
+
+  const parts = [
+    { c: subj, kind: "noun", role: "subj", label: "subject" },
+    { c: verb, kind: "verb", role: "verb", label: "verb" },
+    { c: obj,  kind: "noun", role: "obj",  label: "object" }
+  ];
+  if (adv) parts.push({ c: adv, kind: "adv", role: "adv", label: "adverb" });
+
+  /* choose a palette of languages for this sentence, then deal
+     them out so at least two distinct languages always appear */
+  const palette = shuffle(langs).slice(0, Math.max(2, maxL));
+  let assign;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    assign = parts.map(() => pick(palette));
+    if (new Set(assign).size >= 2) break;
+  }
+  if (new Set(assign).size < 2) { assign[0] = palette[0]; assign[1] = palette[1]; }
+
+  const tokens = parts.map((p, k) => ({
+    text: form(p.c, assign[k], p.role),
+    lang: assign[k],
+    kind: p.kind,
+    role: p.role,
+    label: p.label,
+    id: p.c.id
+  }));
+
+  return { tokens, gloss: glossFor(subj, verb, obj, adv), subj, verb, obj, adv };
+}
+
+/* English gloss. Frequency adverbs sit before the verb in English,
+   everything else trails the object. */
+function glossFor(subj, verb, obj, adv) {
+  const w = adv && adv.pre
+    ? [subj.en, adv.en, verb.en, obj.en]
+    : [subj.en, verb.en, obj.en].concat(adv ? [adv.en] : []);
+  return cap(w.join(" ")) + ".";
+}
+
+/* ============================================================
+   6. SETUP SCREEN
+   ============================================================ */
+function buildSetup() {
+  const wrap = $("#langs"); wrap.innerHTML = "";
+  LCODES.forEach((code) => {
+    const b = el("button", "lang");
+    b.style.setProperty("--c", LANGS[code].color);
+    b.setAttribute("aria-pressed", S.langs.includes(code) ? "true" : "false");
+    b.append(el("span", "dot"), el("span", "nm", LANGS[code].name), el("span", "code", code.toUpperCase()));
+    b.onclick = () => {
+      const on = S.langs.includes(code);
+      if (on) S.langs = S.langs.filter((l) => l !== code);
+      else if (S.langs.length < 6) S.langs.push(code);
+      else return flash("Six is the maximum for now");
+      b.setAttribute("aria-pressed", on ? "false" : "true");
+      syncSetup();
+    };
+    wrap.append(b);
+  });
+
+  const tw = $("#tiers"); tw.innerHTML = "";
+  TIERS.forEach((t) => {
+    const b = el("button", "tier");
+    b.setAttribute("aria-pressed", S.tier === t.id ? "true" : "false");
+    b.append(el("b", null, t.name), el("small", null, t.note));
+    b.onclick = () => { S.tier = t.id; store.set("seam.tier", t.id); [...tw.children].forEach((c) => c.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); };
+    tw.append(b);
+  });
+  syncSetup();
+}
+
+let flashT;
+function flash(msg) {
+  const h = $("#setup-hint"); h.textContent = msg;
+  clearTimeout(flashT); flashT = setTimeout(syncSetup, 1800);
+}
+
+function syncSetup() {
+  const n = S.langs.length;
+  $("#count").textContent = n + " of 6";
+  $("#start").disabled = n < 2;
+  $("#setup-hint").textContent = n < 2
+    ? "Pick at least two languages"
+    : n + " languages · " + TOTAL + " challenges";
+  store.set("seam.langs", S.langs);
+}
+
+/* ============================================================
+   7. ROUND FLOW
+   ============================================================ */
+function screen(id) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("on"));
+  $("#s-" + id).classList.add("on");
+}
+
+function friendPool() {
+  const inSet = FRIENDS.filter((f) => S.langs.includes(f.lang));
+  const both = inSet.filter((f) => S.langs.includes(f.trap));
+  return both.length >= 2 ? both : inSet;
+}
+
+function startRound() {
+  const kinds = ["build", "build", "build", "tag", "tag", "decode", "decode", "friends", "friends", "relay"];
+  const haveFriends = friendPool().length > 0;
+  const canRelay = S.langs.length >= 2;
+  S.queue = shuffle(kinds).map((k) => {
+    if (k === "friends" && !haveFriends) return "decode";
+    if (k === "relay" && !canRelay) return "tag";
+    return k;
+  });
+  S.i = 0; S.score = 0; S.streak = 0; S.correct = 0; S.perLang = {};
+  screen("play");
+  nextChallenge();
+}
+
+function nextChallenge() {
+  if (S.i >= TOTAL) return endRound();
+  S.answered = false;
+  $("#verdict").hidden = true;
+  $("#prog").textContent = String(S.i + 1).padStart(2, "0") + " / " + TOTAL;
+  $("#score").textContent = S.score;
+  $("#streak").innerHTML = S.streak >= 2 ? "&times;" + streakMult().toFixed(1) + " streak" : "&nbsp;";
+  const kind = S.queue[S.i];
+  S.cur = { kind };
+  ({ build: renderBuild, tag: renderTag, decode: renderDecode, friends: renderFriends, relay: renderRelay })[kind]();
+  startClock();
+}
+
+function streakMult() { return Math.min(2, 1 + S.streak * 0.1); }
+
+/* --- clock --- */
+function startClock() {
+  stopClock();
+  const t = tier().time;
+  const bar = $("#clock").firstElementChild;
+  $("#clock").classList.remove("warn");
+  if (!t) { bar.style.width = "0%"; return; }
+  S.left = t;
+  bar.style.width = "100%";
+  S.timer = setInterval(() => {
+    S.left -= 0.1;
+    const p = Math.max(0, S.left / t);
+    bar.style.width = (p * 100) + "%";
+    if (p < 0.25) $("#clock").classList.add("warn");
+    if (S.left <= 0) { stopClock(); if (!S.answered) timeUp(); }
+  }, 100);
+}
+function stopClock() { if (S.timer) clearInterval(S.timer); S.timer = null; }
+
+function timeUp() {
+  const c = S.cur;
+  if (c.langsTouched) c.langsTouched.forEach((l) => mark(l, false));
+  S.streak = 0;
+  verdict(false, 0, "Out of time.", c.reveal || "");
+}
+
+/* --- ribbon: the sentence's language structure --- */
+function drawRibbon(tokens) {
+  const r = $("#ribbon"); r.innerHTML = "";
+  (tokens || []).forEach((t) => {
+    const i = el("i");
+    if (t.lang) i.style.background = LANGS[t.lang].color;
+    r.append(i);
+  });
+  if (!tokens || !tokens.length) for (let k = 0; k < 4; k++) r.append(el("i"));
+}
+
+/* --- shared: verdict panel --- */
+function verdict(ok, pts, head, why) {
+  S.answered = true;
+  stopClock();
+  if (ok) { S.correct++; S.score += pts; S.streak++; } else { S.streak = 0; }
+  $("#score").textContent = S.score;
+
+  const v = $("#verdict"); v.innerHTML = ""; v.hidden = false;
+  const h = el("div", "vhead " + (ok ? "ok" : "no"));
+  h.append(el("b", null, head));
+  if (pts) h.append(el("span", "pts", "+" + pts));
+  v.append(h);
+  if (why) { const p = el("p", "why"); p.innerHTML = why; v.append(p); }
+  const btn = el("button", "cta", S.i + 1 >= TOTAL ? "See results" : "Next");
+  btn.onclick = () => { S.i++; nextChallenge(); };
+  v.append(btn);
+  btn.focus({ preventScroll: true });
+}
+
+function award(base) {
+  const t = tier().time;
+  const timeBonus = t ? Math.round(base * 0.5 * Math.max(0, S.left / t)) : 0;
+  return Math.round((base + timeBonus) * streakMult());
+}
+
+function stageHead(kindLabel, ask) {
+  const st = $("#stage"); st.innerHTML = "";
+  st.append(el("p", "eyebrow kind", kindLabel));
+  const h = el("h2", "ask"); h.innerHTML = ask;
+  st.append(h);
+  return st;
+}
+
+/* renders a sentence as coloured, underlined words */
+function sentenceNode(tokens, opts) {
+  opts = opts || {};
+  const s = el("div", "sent");
+  tokens.forEach((t, k) => {
+    const w = el("span", "w tinted", t.text);
+    w.style.setProperty("--wc", LANGS[t.lang].color);
+    if (opts.hideColor) { w.className = "w"; w.style.setProperty("--wc", "var(--line)"); }
+    if (opts.onTap) { w.setAttribute("role", "button"); w.tabIndex = 0; w.onclick = () => opts.onTap(k, w); }
+    s.append(w);
+  });
+  return s;
+}
+
+/* ============================================================
+   8a. FRANKENSENTENCE — fill each slot in the language it demands
+   ============================================================ */
+function renderBuild() {
+  const s = makeSentence();
+  const target = pick(s.tokens.map((t, i) => i));   // one slot is blank
+  const blanks = s.tokens.map((_, i) => i === target || Math.random() < 0.34);
+  if (!blanks.some(Boolean)) blanks[target] = true;
+
+  S.cur.langsTouched = s.tokens.filter((_, i) => blanks[i]).map((t) => t.lang);
+  S.cur.reveal = "The sentence was <b>" + s.tokens.map((t) => t.text).join(" ") + "</b>";
+
+  const st = stageHead("Frankensentence", 'Finish the sentence. <span class="q">Each gap only accepts the language it is labelled with.</span>');
+
+  const card = el("div", "card");
+  const meaning = el("p", "gloss", s.gloss);
+  meaning.style.margin = "0 0 14px";
+  card.append(meaning);
+
+  const slotWrap = el("div", "slots");
+  const slotNodes = [];
+  s.tokens.forEach((t, i) => {
+    if (!blanks[i]) {
+      const w = el("span", "w tinted", t.text);
+      w.style.setProperty("--wc", LANGS[t.lang].color);
+      w.style.alignSelf = "flex-end"; w.style.paddingBottom = "12px";
+      slotWrap.append(w);
+      slotNodes.push(null);
+      return;
+    }
+    const sl = el("div", "slot");
+    sl.style.setProperty("--sc", LANGS[t.lang].color);
+    sl.append(el("span", "tag", t.lang.toUpperCase()));
+    sl.append(el("span", "val empty", t.label));
+    slotWrap.append(sl);
+    slotNodes.push(sl);
+  });
+  card.append(slotWrap);
+  st.append(card);
+
+  /* word bank: correct forms plus same-language, same-kind decoys */
+  const bank = [];
+  s.tokens.forEach((t, i) => {
+    if (!blanks[i]) return;
+    bank.push({ text: t.text, slot: i, ok: true });
+    const pool = t.kind === "verb" ? VERBS : t.kind === "adv" ? ADVS : NOUNS.filter((n) => (t.role === "subj" ? n.an : true));
+    shuffle(pool).filter((c) => c.id !== t.id).slice(0, 2).forEach((c) => {
+      bank.push({ text: form(c, t.lang, t.role), slot: i, ok: false });
+    });
+  });
+
+  const bcard = el("div", "card");
+  bcard.append(el("p", "eyebrow", "Word bank"));
+  const bw = el("div", "bank");
+  let remaining = blanks.filter(Boolean).length;
+  const filled = {};
+
+  shuffle(bank).forEach((b) => {
+    const t = s.tokens[b.slot];
+    const chip = el("button", "chip");
+    chip.style.setProperty("--cc", LANGS[t.lang].color);
+    chip.append(el("span", "flag"), el("span", null, b.text));
+    chip.onclick = () => {
+      if (S.answered || filled[b.slot]) return;
+      const sl = slotNodes[b.slot];
+      sl.classList.add("full");
+      const val = sl.querySelector(".val");
+      val.textContent = b.text; val.classList.remove("empty");
+      filled[b.slot] = true;
+      chip.classList.add(b.ok ? "right" : "wrong");
+      mark(t.lang, b.ok);
+      if (!b.ok) { S.cur.miss = true; sl.style.borderColor = "var(--bad)"; }
+      remaining--;
+      if (remaining === 0) {
+        const ok = !S.cur.miss;
+        verdict(ok, ok ? award(140) : 0,
+          ok ? "Built correctly" : "Not quite",
+          ok ? "<b>" + s.tokens.map((x) => x.text).join(" ") + "</b>"
+             : "The sentence was <b>" + s.tokens.map((x) => x.text).join(" ") + "</b>");
+      }
+    };
+    bw.append(chip);
+  });
+  bcard.append(bw);
+  st.append(bcard);
+  drawRibbon(s.tokens);
+}
+
+/* ============================================================
+   8b. TAG THE TONGUE — name the language of each word
+   ============================================================ */
+function renderTag() {
+  const s = makeSentence();
+  S.cur.langsTouched = s.tokens.map((t) => t.lang);
+  S.cur.reveal = s.tokens.map((t) => "<b>" + t.text + "</b> " + LANGS[t.lang].name).join(" · ");
+
+  const st = stageHead("Tag the tongue", 'Which language is each word from? <span class="q">Tap through them in order.</span>');
+
+  const card = el("div", "card");
+  let idx = 0, hits = 0;
+  const words = [];
+  const row = el("div", "sent");
+  s.tokens.forEach((t) => {
+    const w = el("span", "w", t.text);
+    w.style.setProperty("--wc", "var(--line)");
+    words.push(w); row.append(w);
+  });
+  card.append(row);
+  st.append(card);
+
+  const ccard = el("div", "card");
+  const label = el("p", "eyebrow", "Word 1 of " + s.tokens.length);
+  ccard.append(label);
+  const cw = el("div", "langchips");
+  S.langs.forEach((code) => {
+    const c = el("button", "langchip");
+    c.style.setProperty("--cc", LANGS[code].color);
+    c.append(el("span", "flag"), el("span", null, LANGS[code].name));
+    c.onclick = () => {
+      if (S.answered) return;
+      const t = s.tokens[idx];
+      const ok = code === t.lang;
+      if (ok) hits++;
+      mark(t.lang, ok);
+      const w = words[idx];
+      w.classList.add("tinted");
+      w.style.setProperty("--wc", LANGS[t.lang].color);
+      if (!ok) w.style.textDecoration = "line-through";
+      idx++;
+      if (idx < s.tokens.length) {
+        label.textContent = "Word " + (idx + 1) + " of " + s.tokens.length;
+      } else {
+        const all = hits === s.tokens.length;
+        verdict(all, all ? award(120) : Math.round(hits * 18),
+          all ? "Every word placed" : hits + " of " + s.tokens.length + " right",
+          all ? "" : S.cur.reveal);
+      }
+    };
+    cw.append(c);
+  });
+  ccard.append(cw);
+  st.append(ccard);
+  drawRibbon(s.tokens.map(() => ({})));
+  setTimeout(() => drawRibbon(s.tokens), 0);
+}
+
+/* ============================================================
+   8c. DECODE — read the hybrid, pick what it means
+   ============================================================ */
+function renderDecode() {
+  const s = makeSentence();
+  S.cur.langsTouched = [...new Set(s.tokens.map((t) => t.lang))];
+  S.cur.reveal = "It means <b>" + s.gloss + "</b>";
+
+  const st = stageHead("Decode", "What does this sentence say?");
+
+  const card = el("div", "card");
+  card.append(sentenceNode(s.tokens));
+  st.append(card);
+
+  /* distractors swap exactly one element, so guessing needs real reading */
+  const opts = [{ text: s.gloss, ok: true }];
+  const otherObj = byId(NOUNS, pick(s.verb.obj.filter((o) => o !== s.obj.id)) || s.obj.id);
+  const otherVerb = pick(VERBS.filter((v) => v.id !== s.verb.id && v.obj.includes(s.obj.id))) || pick(VERBS);
+  const otherSubj = pick(NOUNS.filter((n) => n.an && n.id !== s.subj.id));
+  const cands = [
+    glossFor(s.subj, s.verb, otherObj, s.adv),
+    glossFor(s.subj, otherVerb, s.obj, s.adv),
+    glossFor(otherSubj, s.verb, s.obj, s.adv)
+  ];
+  cands.forEach((c) => { if (c !== s.gloss && !opts.some((o) => o.text === c)) opts.push({ text: c, ok: false }); });
+
+  const ocard = el("div", "card");
+  const ow = el("div", "opts");
+  shuffle(opts).slice(0, 4).forEach((o) => {
+    const b = el("button", "chip wide", o.text);
+    b.onclick = () => {
+      if (S.answered) return;
+      S.cur.langsTouched.forEach((l) => mark(l, o.ok));
+      b.classList.add(o.ok ? "right" : "wrong");
+      verdict(o.ok, o.ok ? award(130) : 0, o.ok ? "Read correctly" : "Misread", o.ok ? "" : S.cur.reveal);
+    };
+    ow.append(b);
+  });
+  ocard.append(ow);
+  st.append(ocard);
+  drawRibbon(s.tokens);
+}
+
+/* ============================================================
+   8d. FALSE FRIENDS
+   ============================================================ */
+function renderFriends() {
+  const f = pick(friendPool());
+  S.cur.langsTouched = [f.lang];
+  S.cur.reveal = f.note;
+
+  const st = stageHead("False friends", "In " + LANGS[f.lang].name + ', what does <span class="q">this word actually mean?</span>');
+
+  const card = el("div", "card");
+  const w = el("div", "sent");
+  const word = el("span", "w tinted", f.w);
+  word.style.setProperty("--wc", LANGS[f.lang].color);
+  word.style.fontSize = "34px";
+  w.append(word);
+  card.append(w);
+  const tag = el("p", "eyebrow", LANGS[f.lang].name + (S.langs.includes(f.trap) ? " · easily confused with " + LANGS[f.trap].name : ""));
+  tag.style.marginTop = "12px";
+  card.append(tag);
+  st.append(card);
+
+  const ocard = el("div", "card");
+  const ow = el("div", "opts");
+  shuffle([{ text: f.right, ok: true }].concat(f.wrong.map((x) => ({ text: x, ok: false })))).forEach((o) => {
+    const b = el("button", "chip wide", cap(o.text));
+    b.onclick = () => {
+      if (S.answered) return;
+      mark(f.lang, o.ok);
+      b.classList.add(o.ok ? "right" : "wrong");
+      verdict(o.ok, o.ok ? award(110) : 0, o.ok ? "Not fooled" : "That is the trap", f.note);
+    };
+    ow.append(b);
+  });
+  ocard.append(ow);
+  st.append(ocard);
+  drawRibbon([{ lang: f.lang }, S.langs.includes(f.trap) ? { lang: f.trap } : {}]);
+}
+
+/* ============================================================
+   8e. RELAY — carry one meaning through a chain of languages
+   ============================================================ */
+function renderRelay() {
+  const chainLen = Math.min(S.langs.length, S.langs.length >= 4 ? 4 : 3);
+  const chain = shuffle(S.langs).slice(0, chainLen);
+  const pool = Math.random() < 0.5 ? NOUNS : VERBS;
+  const concept = pick(pool);
+  S.cur.langsTouched = chain.slice(1);
+  S.cur.reveal = chain.map((l) => "<b>" + concept[l] + "</b>").join(" → ");
+
+  const st = stageHead("Relay", 'Carry the same meaning down the chain. <span class="q">One hop at a time.</span>');
+
+  const card = el("div", "card");
+  const row = el("div", "sent");
+  card.append(row);
+  const meaning = el("p", "gloss", "meaning: " + (pool === NOUNS ? concept.en : "to " + concept.id));
+  card.append(meaning);
+  st.append(card);
+
+  function addWord(lang) {
+    const w = el("span", "w tinted", concept[lang]);
+    w.style.setProperty("--wc", LANGS[lang].color);
+    row.append(w);
+  }
+  addWord(chain[0]);
+
+  const ocard = el("div", "card");
+  const label = el("p", "eyebrow", "");
+  const ow = el("div", "langchips");
+  ocard.append(label, ow);
+  st.append(ocard);
+
+  let hop = 1, hits = 0;
+
+  function askHop() {
+    const lang = chain[hop];
+    label.textContent = "Next: the same word in " + LANGS[lang].name;
+    ow.innerHTML = "";
+    const decoys = shuffle(pool.filter((c) => c.id !== concept.id)).slice(0, 3)
+      .map((c) => ({ text: c[lang], ok: false }));
+    shuffle([{ text: concept[lang], ok: true }].concat(decoys)).forEach((o) => {
+      const b = el("button", "chip", o.text);
+      b.style.setProperty("--cc", LANGS[lang].color);
+      b.prepend(el("span", "flag"));
+      b.onclick = () => {
+        if (S.answered) return;
+        mark(lang, o.ok);
+        if (o.ok) hits++; else b.classList.add("wrong");
+        addWord(lang);
+        hop++;
+        if (hop < chain.length) { askHop(); }
+        else {
+          const all = hits === chain.length - 1;
+          verdict(all, all ? award(150) : hits * 30,
+            all ? "Chain intact" : "Chain broken",
+            S.cur.reveal);
+        }
+      };
+      ow.append(b);
+    });
+  }
+  askHop();
+  drawRibbon(chain.map((l) => ({ lang: l })));
+}
+
+/* ============================================================
+   9. RESULTS
+   ============================================================ */
+function endRound() {
+  stopClock();
+  screen("res");
+  $("#final").textContent = S.score;
+  $("#final-sub").textContent = S.correct + " of " + TOTAL + " challenges solved · " + tier().name;
+
+  const bars = $("#bars"); bars.innerHTML = "";
+  const rows = Object.entries(S.perLang).sort((a, b) => (b[1].hit / b[1].tot) - (a[1].hit / a[1].tot));
+  if (!rows.length) bars.append(el("p", "empty", "No language data this round."));
+  rows.forEach(([code, r]) => {
+    const pct = Math.round((r.hit / r.tot) * 100);
+    const b = el("div", "bar");
+    b.style.setProperty("--bc", LANGS[code].color);
+    const row = el("div", "row");
+    row.append(el("b", null, LANGS[code].name), el("span", "pct", pct + "% of " + r.tot));
+    const track = el("div", "track");
+    const fill = el("div", "fill"); fill.style.width = "0%";
+    track.append(fill);
+    b.append(row, track); bars.append(b);
+    requestAnimationFrame(() => { fill.style.width = pct + "%"; });
+  });
+
+  const lt = store.get("seam.lifetime", { rounds: 0, score: 0, best: 0 });
+  lt.rounds++; lt.score += S.score; lt.best = Math.max(lt.best, S.score);
+  store.set("seam.lifetime", lt);
+  $("#lifetime").textContent = lt.rounds + " rounds · " + lt.score.toLocaleString() + " points · best round " + lt.best;
+}
+
+/* ============================================================
+   10. WIRING
+   ============================================================ */
+$("#start").onclick = startRound;
+$("#again").onclick = startRound;
+$("#reset").onclick = () => { screen("setup"); syncSetup(); };
+$("#quit").onclick = () => { stopClock(); if (S.i > 0 || S.answered) endRound(); else screen("setup"); };
+
+buildSetup();
+drawRibbon(null);
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

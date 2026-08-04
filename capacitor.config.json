@@ -1,0 +1,11 @@
+{
+  "appId": "app.seam.polyglot",
+  "appName": "Seam",
+  "webDir": ".",
+  "android": {
+    "backgroundColor": "#14121c"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "seam",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A code-switching trainer for multilinguals.",
+  "scripts": {
+    "dev": "npx --yes serve . -l 5173",
+    "cap:add": "npx cap add android",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:run": "npx cap run android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  }
+}
