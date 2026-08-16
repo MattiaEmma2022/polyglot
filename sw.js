@@ -1,5 +1,5 @@
 /* Cache-first shell so a round works with no connection. */
-const CACHE = "seam-v1";
+const CACHE = "seam-v2";
 const SHELL = [
   "./", "./index.html", "./manifest.json",
   "./icons/icon-192.png", "./icons/icon-512.png"
