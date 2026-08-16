@@ -191,6 +191,9 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .chip.wide{width:100%;justify-content:flex-start;text-align:left;white-space:normal;line-height:1.3}
 .chip.right{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--ink-2))}
 .chip.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--ink-2))}
+.chip .tcode{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--paper-faint);letter-spacing:.08em;flex:none}
+
+#pressure-block.hidden{display:none}
 
 .opts{display:flex;flex-direction:column;gap:9px}
 .langchips{display:flex;flex-wrap:wrap;gap:9px}
@@ -253,6 +256,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
     </div>
 
     <div class="block">
+      <h2>Mode</h2>
+      <div class="tiers" id="modes"></div>
+    </div>
+
+    <div class="block" id="pressure-block">
       <h2>Pressure</h2>
       <div class="tiers" id="tiers"></div>
     </div>
@@ -284,7 +292,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 <!-- ==================== RESULTS ==================== -->
 <section id="s-res" class="screen">
   <div class="res">
-    <p class="eyebrow">Round complete</p>
+    <p class="eyebrow" id="res-eyebrow">Round complete</p>
     <div class="big" id="final">0</div>
     <p class="sub" id="final-sub"></p>
 
@@ -350,68 +358,228 @@ const LCODES = Object.keys(LANGS);
    via the optional `acc` field.
    ============================================================ */
 const NOUNS = [
-  { id:"cat",     an:1, en:"the cat",       fr:"le chat",     it:"il gatto",     de:"die Katze",   es:"el gato",      ro:"pisica" },
-  { id:"dog",     an:1, en:"the dog",       fr:"le chien",    it:"il cane",      de:"der Hund",    es:"el perro",     ro:"câinele", acc:"den Hund" },
-  { id:"child",   an:1, en:"the child",     fr:"l'enfant",    it:"il bambino",   de:"das Kind",    es:"el niño",      ro:"copilul" },
-  { id:"woman",   an:1, en:"the woman",     fr:"la femme",    it:"la donna",     de:"die Frau",    es:"la mujer",     ro:"femeia" },
-  { id:"man",     an:1, en:"the man",       fr:"l'homme",     it:"l'uomo",       de:"der Mann",    es:"el hombre",    ro:"bărbatul", acc:"den Mann" },
-  { id:"teacher", an:1, en:"the teacher",   fr:"le prof",     it:"il maestro",   de:"der Lehrer",  es:"el profesor",  ro:"profesorul", acc:"den Lehrer" },
-  { id:"friend",  an:1, en:"the friend",    fr:"l'ami",       it:"l'amico",      de:"der Freund",  es:"el amigo",     ro:"prietenul", acc:"den Freund" },
+  { id:"cat",     an:1, d:1, en:"the cat",       fr:"le chat",     it:"il gatto",     de:"die Katze",   es:"el gato",      ro:"pisica" },
+  { id:"dog",     an:1, d:1, en:"the dog",       fr:"le chien",    it:"il cane",      de:"der Hund",    es:"el perro",     ro:"câinele", acc:"den Hund" },
+  { id:"child",   an:1, d:2, en:"the child",     fr:"l'enfant",    it:"il bambino",   de:"das Kind",    es:"el niño",      ro:"copilul" },
+  { id:"woman",   an:1, d:1, en:"the woman",     fr:"la femme",    it:"la donna",     de:"die Frau",    es:"la mujer",     ro:"femeia" },
+  { id:"man",     an:1, d:1, en:"the man",       fr:"l'homme",     it:"l'uomo",       de:"der Mann",    es:"el hombre",    ro:"bărbatul", acc:"den Mann" },
+  { id:"teacher", an:1, d:2, en:"the teacher",   fr:"le prof",     it:"il maestro",   de:"der Lehrer",  es:"el profesor",  ro:"profesorul", acc:"den Lehrer" },
+  { id:"friend",  an:1, d:1, en:"the friend",    fr:"l'ami",       it:"l'amico",      de:"der Freund",  es:"el amigo",     ro:"prietenul", acc:"den Freund" },
+  { id:"mother",  an:1, d:1, en:"the mother",    fr:"la mère",     it:"la madre",     de:"die Mutter",  es:"la madre",     ro:"mama" },
+  { id:"father",  an:1, d:1, en:"the father",    fr:"le père",     it:"il padre",     de:"der Vater",   es:"el padre",     ro:"tatăl", acc:"den Vater" },
+  { id:"neighbor",an:1, d:2, en:"the neighbor",  fr:"le voisin",   it:"il vicino",    de:"der Nachbar", es:"el vecino",    ro:"vecinul", acc:"den Nachbarn" },
+  { id:"stranger",an:1, d:3, en:"the stranger",  fr:"l'étranger",  it:"lo straniero", de:"der Fremde",  es:"el extraño",   ro:"străinul", acc:"den Fremden" },
+  { id:"king",    an:1, d:2, en:"the king",      fr:"le roi",      it:"il re",        de:"der König",   es:"el rey",       ro:"regele", acc:"den König" },
+  { id:"queen",   an:1, d:2, en:"the queen",     fr:"la reine",    it:"la regina",    de:"die Königin", es:"la reina",     ro:"regina" },
 
-  { id:"bread",   en:"the bread",     fr:"le pain",      it:"il pane",       de:"das Brot",     es:"el pan",        ro:"pâinea" },
-  { id:"cheese",  en:"the cheese",    fr:"le fromage",   it:"il formaggio",  de:"der Käse",     es:"el queso",      ro:"brânza", acc:"den Käse" },
-  { id:"apple",   en:"the apple",     fr:"la pomme",     it:"la mela",       de:"der Apfel",    es:"la manzana",    ro:"mărul", acc:"den Apfel" },
-  { id:"water",   en:"the water",     fr:"l'eau",        it:"l'acqua",       de:"das Wasser",   es:"el agua",       ro:"apa" },
-  { id:"wine",    en:"the wine",      fr:"le vin",       it:"il vino",       de:"der Wein",     es:"el vino",       ro:"vinul", acc:"den Wein" },
-  { id:"coffee",  en:"the coffee",    fr:"le café",      it:"il caffè",      de:"der Kaffee",   es:"el café",       ro:"cafeaua", acc:"den Kaffee" },
-  { id:"book",    en:"the book",      fr:"le livre",     it:"il libro",      de:"das Buch",     es:"el libro",      ro:"cartea" },
-  { id:"letter",  en:"the letter",    fr:"la lettre",    it:"la lettera",    de:"der Brief",    es:"la carta",      ro:"scrisoarea", acc:"den Brief" },
-  { id:"paper",   en:"the newspaper", fr:"le journal",   it:"il giornale",   de:"die Zeitung",  es:"el periódico",  ro:"ziarul" },
-  { id:"song",    en:"the song",      fr:"la chanson",   it:"la canzone",    de:"das Lied",     es:"la canción",    ro:"cântecul" },
-  { id:"dream",   en:"the dream",     fr:"le rêve",      it:"il sogno",      de:"der Traum",    es:"el sueño",      ro:"visul", acc:"den Traum" },
-  { id:"key",     en:"the key",       fr:"la clé",       it:"la chiave",     de:"der Schlüssel",es:"la llave",      ro:"cheia", acc:"den Schlüssel" },
-  { id:"money",   en:"the money",     fr:"l'argent",     it:"il denaro",     de:"das Geld",     es:"el dinero",     ro:"banii" },
-  { id:"car",     en:"the car",       fr:"la voiture",   it:"la macchina",   de:"das Auto",     es:"el coche",      ro:"mașina" },
-  { id:"house",   en:"the house",     fr:"la maison",    it:"la casa",       de:"das Haus",     es:"la casa",       ro:"casa" },
-  { id:"door",    en:"the door",      fr:"la porte",     it:"la porta",      de:"die Tür",      es:"la puerta",     ro:"ușa" },
-  { id:"window",  en:"the window",    fr:"la fenêtre",   it:"la finestra",   de:"das Fenster",  es:"la ventana",    ro:"fereastra" },
-  { id:"school",  en:"the school",    fr:"l'école",      it:"la scuola",     de:"die Schule",   es:"la escuela",    ro:"școala" },
-  { id:"city",    en:"the city",      fr:"la ville",     it:"la città",      de:"die Stadt",    es:"la ciudad",     ro:"orașul" },
-  { id:"flower",  en:"the flower",    fr:"la fleur",     it:"il fiore",      de:"die Blume",    es:"la flor",       ro:"floarea" },
-  { id:"mountain",en:"the mountain",  fr:"la montagne",  it:"la montagna",   de:"der Berg",     es:"la montaña",    ro:"muntele", acc:"den Berg" },
-  { id:"sea",     en:"the sea",       fr:"la mer",       it:"il mare",       de:"das Meer",     es:"el mar",        ro:"marea" },
-  { id:"sun",     en:"the sun",       fr:"le soleil",    it:"il sole",       de:"die Sonne",    es:"el sol",        ro:"soarele" },
-  { id:"night",   en:"the night",     fr:"la nuit",      it:"la notte",      de:"die Nacht",    es:"la noche",      ro:"noaptea" }
+  { id:"bread",   d:1, en:"the bread",     fr:"le pain",      it:"il pane",       de:"das Brot",     es:"el pan",        ro:"pâinea" },
+  { id:"cheese",  d:2, en:"the cheese",    fr:"le fromage",   it:"il formaggio",  de:"der Käse",     es:"el queso",      ro:"brânza", acc:"den Käse" },
+  { id:"apple",   d:2, en:"the apple",     fr:"la pomme",     it:"la mela",       de:"der Apfel",    es:"la manzana",    ro:"mărul", acc:"den Apfel" },
+  { id:"water",   d:1, en:"the water",     fr:"l'eau",        it:"l'acqua",       de:"das Wasser",   es:"el agua",       ro:"apa" },
+  { id:"wine",    d:2, en:"the wine",      fr:"le vin",       it:"il vino",       de:"der Wein",     es:"el vino",       ro:"vinul", acc:"den Wein" },
+  { id:"coffee",  d:2, en:"the coffee",    fr:"le café",      it:"il caffè",      de:"der Kaffee",   es:"el café",       ro:"cafeaua", acc:"den Kaffee" },
+  { id:"book",    d:1, en:"the book",      fr:"le livre",     it:"il libro",      de:"das Buch",     es:"el libro",      ro:"cartea" },
+  { id:"letter",  d:2, en:"the letter",    fr:"la lettre",    it:"la lettera",    de:"der Brief",    es:"la carta",      ro:"scrisoarea", acc:"den Brief" },
+  { id:"paper",   d:2, en:"the newspaper", fr:"le journal",   it:"il giornale",   de:"die Zeitung",  es:"el periódico",  ro:"ziarul" },
+  { id:"song",    d:2, en:"the song",      fr:"la chanson",   it:"la canzone",    de:"das Lied",     es:"la canción",    ro:"cântecul" },
+  { id:"dream",   d:3, en:"the dream",     fr:"le rêve",      it:"il sogno",      de:"der Traum",    es:"el sueño",      ro:"visul", acc:"den Traum" },
+  { id:"key",     d:1, en:"the key",       fr:"la clé",       it:"la chiave",     de:"der Schlüssel",es:"la llave",      ro:"cheia", acc:"den Schlüssel" },
+  { id:"money",   d:1, en:"the money",     fr:"l'argent",     it:"il denaro",     de:"das Geld",     es:"el dinero",     ro:"banii" },
+  { id:"car",     d:1, en:"the car",       fr:"la voiture",   it:"la macchina",   de:"das Auto",     es:"el coche",      ro:"mașina" },
+  { id:"house",   d:1, en:"the house",     fr:"la maison",    it:"la casa",       de:"das Haus",     es:"la casa",       ro:"casa" },
+  { id:"door",    d:1, en:"the door",      fr:"la porte",     it:"la porta",      de:"die Tür",      es:"la puerta",     ro:"ușa" },
+  { id:"window",  d:2, en:"the window",    fr:"la fenêtre",   it:"la finestra",   de:"das Fenster",  es:"la ventana",    ro:"fereastra" },
+  { id:"school",  d:2, en:"the school",    fr:"l'école",      it:"la scuola",     de:"die Schule",   es:"la escuela",    ro:"școala" },
+  { id:"city",    d:2, en:"the city",      fr:"la ville",     it:"la città",      de:"die Stadt",    es:"la ciudad",     ro:"orașul" },
+  { id:"flower",  d:2, en:"the flower",    fr:"la fleur",     it:"il fiore",      de:"die Blume",    es:"la flor",       ro:"floarea" },
+  { id:"mountain",d:2, en:"the mountain",  fr:"la montagne",  it:"la montagna",   de:"der Berg",     es:"la montaña",    ro:"muntele", acc:"den Berg" },
+  { id:"sea",     d:2, en:"the sea",       fr:"la mer",       it:"il mare",       de:"das Meer",     es:"el mar",        ro:"marea" },
+  { id:"sun",     d:1, en:"the sun",       fr:"le soleil",    it:"il sole",       de:"die Sonne",    es:"el sol",        ro:"soarele" },
+  { id:"night",   d:1, en:"the night",     fr:"la nuit",      it:"la notte",      de:"die Nacht",    es:"la noche",      ro:"noaptea" },
+
+  { id:"bird",    d:2, en:"the bird",     fr:"l'oiseau",    it:"l'uccello",    de:"der Vogel",    es:"el pájaro",   ro:"pasărea", acc:"den Vogel" },
+  { id:"fish",    d:2, en:"the fish",     fr:"le poisson",  it:"il pesce",     de:"der Fisch",    es:"el pez",      ro:"peștele", acc:"den Fisch" },
+  { id:"garden",  d:2, en:"the garden",   fr:"le jardin",   it:"il giardino",  de:"der Garten",   es:"el jardín",   ro:"grădina", acc:"den Garten" },
+  { id:"forest",  d:2, en:"the forest",   fr:"la forêt",    it:"la foresta",   de:"der Wald",     es:"el bosque",   ro:"pădurea", acc:"den Wald" },
+  { id:"river",   d:2, en:"the river",    fr:"la rivière",  it:"il fiume",     de:"der Fluss",    es:"el río",      ro:"râul", acc:"den Fluss" },
+  { id:"bridge",  d:2, en:"the bridge",   fr:"le pont",     it:"il ponte",     de:"die Brücke",   es:"el puente",   ro:"podul" },
+  { id:"mirror",  d:2, en:"the mirror",   fr:"le miroir",   it:"lo specchio",  de:"der Spiegel",  es:"el espejo",   ro:"oglinda", acc:"den Spiegel" },
+  { id:"candle",  d:2, en:"the candle",   fr:"la bougie",   it:"la candela",   de:"die Kerze",    es:"la vela",     ro:"lumânarea" },
+  { id:"storm",   d:2, en:"the storm",    fr:"la tempête",  it:"la tempesta",  de:"der Sturm",    es:"la tormenta", ro:"furtuna", acc:"den Sturm" },
+  { id:"island",  d:2, en:"the island",   fr:"l'île",       it:"l'isola",      de:"die Insel",    es:"la isla",     ro:"insula" },
+  { id:"star",    d:1, en:"the star",     fr:"l'étoile",    it:"la stella",    de:"der Stern",    es:"la estrella", ro:"steaua", acc:"den Stern" },
+  { id:"street",  d:1, en:"the street",   fr:"la rue",      it:"la strada",    de:"die Straße",   es:"la calle",    ro:"strada" },
+
+  { id:"shadow",  d:3, en:"the shadow",   fr:"l'ombre",     it:"l'ombra",      de:"der Schatten", es:"la sombra",   ro:"umbra", acc:"den Schatten" },
+  { id:"silence", d:3, en:"the silence",  fr:"le silence",  it:"il silenzio",  de:"die Stille",   es:"el silencio", ro:"tăcerea" },
+  { id:"promise", d:3, en:"the promise",  fr:"la promesse", it:"la promessa",  de:"das Versprechen",es:"la promesa", ro:"promisiunea" },
+  { id:"memory",  d:3, en:"the memory",   fr:"le souvenir", it:"il ricordo",   de:"die Erinnerung",es:"el recuerdo", ro:"amintirea" },
+  { id:"courage", d:3, en:"the courage",  fr:"le courage",  it:"il coraggio",  de:"der Mut",      es:"el coraje",   ro:"curajul", acc:"den Mut" },
+  { id:"freedom", d:3, en:"the freedom",  fr:"la liberté",  it:"la libertà",   de:"die Freiheit", es:"la libertad", ro:"libertatea" },
+  { id:"fear",    d:3, en:"the fear",     fr:"la peur",     it:"la paura",     de:"die Angst",    es:"el miedo",    ro:"frica" },
+  { id:"hope",    d:3, en:"the hope",     fr:"l'espoir",    it:"la speranza",  de:"die Hoffnung", es:"la esperanza",ro:"speranța" },
+  { id:"journey", d:3, en:"the journey",  fr:"le voyage",   it:"il viaggio",   de:"die Reise",    es:"el viaje",    ro:"călătoria" },
+  { id:"harvest", d:3, en:"the harvest",  fr:"la récolte",  it:"il raccolto",  de:"die Ernte",    es:"la cosecha",  ro:"recolta" },
+  { id:"truth",   d:3, en:"the truth",    fr:"la vérité",   it:"la verità",    de:"die Wahrheit", es:"la verdad",   ro:"adevărul" },
+  { id:"secret",  d:3, en:"the secret",   fr:"le secret",   it:"il segreto",   de:"das Geheimnis",es:"el secreto",  ro:"secretul" },
+
+  { id:"sister",  an:1, d:1, en:"the sister",  fr:"la sœur",    it:"la sorella",  de:"die Schwester", es:"la hermana",  ro:"sora" },
+  { id:"brother", an:1, d:1, en:"the brother", fr:"le frère",   it:"il fratello", de:"der Bruder",    es:"el hermano",  ro:"fratele", acc:"den Bruder" },
+  { id:"husband", an:1, d:2, en:"the husband", fr:"le mari",    it:"il marito",   de:"der Ehemann",   es:"el esposo",   ro:"soțul", acc:"den Ehemann" },
+  { id:"wife",    an:1, d:2, en:"the wife",    fr:"l'épouse",   it:"la moglie",   de:"die Ehefrau",   es:"la esposa",   ro:"soția" },
+  { id:"doctor",  an:1, d:2, en:"the doctor",  fr:"le médecin", it:"il dottore",  de:"der Arzt",      es:"el médico",   ro:"doctorul", acc:"den Arzt" },
+  { id:"farmer",  an:1, d:2, en:"the farmer",  fr:"le fermier", it:"il contadino",de:"der Bauer",     es:"el granjero", ro:"fermierul", acc:"den Bauern" },
+  { id:"soldier", an:1, d:2, en:"the soldier", fr:"le soldat",  it:"il soldato",  de:"der Soldat",    es:"el soldado",  ro:"soldatul", acc:"den Soldaten" },
+
+  { id:"table",  d:1, en:"the table",  fr:"la table",   it:"il tavolo",    de:"der Tisch",   es:"la mesa",    ro:"masa", acc:"den Tisch" },
+  { id:"chair",  d:1, en:"the chair",  fr:"la chaise",  it:"la sedia",     de:"der Stuhl",   es:"la silla",   ro:"scaunul", acc:"den Stuhl" },
+  { id:"glass",  d:1, en:"the glass",  fr:"le verre",   it:"il bicchiere", de:"das Glas",    es:"el vaso",    ro:"paharul" },
+  { id:"ring",   d:2, en:"the ring",   fr:"la bague",   it:"l'anello",     de:"der Ring",    es:"el anillo",  ro:"inelul", acc:"den Ring" },
+  { id:"box",    d:1, en:"the box",    fr:"la boîte",   it:"la scatola",   de:"die Kiste",   es:"la caja",    ro:"cutia" },
+  { id:"ship",   d:2, en:"the ship",   fr:"le bateau",  it:"la nave",      de:"das Schiff",  es:"el barco",   ro:"nava" },
+  { id:"train",  d:1, en:"the train",  fr:"le train",   it:"il treno",     de:"der Zug",     es:"el tren",    ro:"trenul", acc:"den Zug" },
+  { id:"hand",   d:1, en:"the hand",   fr:"la main",    it:"la mano",      de:"die Hand",    es:"la mano",    ro:"mâna" },
+  { id:"eye",    d:1, en:"the eye",    fr:"l'œil",      it:"l'occhio",     de:"das Auge",    es:"el ojo",     ro:"ochiul" },
+  { id:"heart",  d:1, en:"the heart",  fr:"le cœur",    it:"il cuore",     de:"das Herz",    es:"el corazón", ro:"inima" },
+  { id:"blood",  d:2, en:"the blood",  fr:"le sang",    it:"il sangue",    de:"das Blut",    es:"la sangre",  ro:"sângele" },
+  { id:"fire",   d:1, en:"the fire",   fr:"le feu",     it:"il fuoco",     de:"das Feuer",   es:"el fuego",   ro:"focul" },
+  { id:"ice",    d:1, en:"the ice",    fr:"la glace",   it:"il ghiaccio",  de:"das Eis",     es:"el hielo",   ro:"gheața" },
+  { id:"snow",   d:1, en:"the snow",   fr:"la neige",   it:"la neve",      de:"der Schnee",  es:"la nieve",   ro:"zăpada", acc:"den Schnee" },
+  { id:"rain",   d:1, en:"the rain",   fr:"la pluie",   it:"la pioggia",   de:"der Regen",   es:"la lluvia",  ro:"ploaia", acc:"den Regen" },
+  { id:"wind",   d:1, en:"the wind",   fr:"le vent",    it:"il vento",     de:"der Wind",    es:"el viento",  ro:"vântul", acc:"den Wind" },
+  { id:"tree",   d:1, en:"the tree",   fr:"l'arbre",    it:"l'albero",     de:"der Baum",    es:"el árbol",   ro:"copacul", acc:"den Baum" },
+  { id:"grass",  d:2, en:"the grass",  fr:"l'herbe",    it:"l'erba",       de:"das Gras",    es:"la hierba",  ro:"iarba" },
+  { id:"salt",   d:2, en:"the salt",   fr:"le sel",     it:"il sale",      de:"das Salz",    es:"la sal",     ro:"sarea" },
+  { id:"sugar",  d:2, en:"the sugar",  fr:"le sucre",   it:"lo zucchero",  de:"der Zucker",  es:"el azúcar",  ro:"zahărul", acc:"den Zucker" },
+  { id:"milk",   d:1, en:"the milk",   fr:"le lait",    it:"il latte",     de:"die Milch",   es:"la leche",   ro:"laptele" },
+  { id:"egg",    d:1, en:"the egg",    fr:"l'œuf",      it:"l'uovo",       de:"das Ei",      es:"el huevo",   ro:"oul" },
+  { id:"fruit",  d:2, en:"the fruit",  fr:"le fruit",   it:"il frutto",    de:"die Frucht",  es:"la fruta",   ro:"fructul" },
+  { id:"meat",   d:2, en:"the meat",   fr:"la viande",  it:"la carne",     de:"das Fleisch", es:"la carne",   ro:"carnea" },
+
+  { id:"horse",  an:1, d:1, en:"the horse",  fr:"le cheval", it:"il cavallo", de:"das Pferd",  es:"el caballo", ro:"calul" },
+  { id:"cow",    an:1, d:1, en:"the cow",    fr:"la vache",  it:"la mucca",   de:"die Kuh",    es:"la vaca",    ro:"vaca" },
+  { id:"sheep",  an:1, d:2, en:"the sheep",  fr:"le mouton", it:"la pecora",  de:"das Schaf",  es:"la oveja",   ro:"oaia" },
+  { id:"wolf",   an:1, d:2, en:"the wolf",   fr:"le loup",   it:"il lupo",    de:"der Wolf",   es:"el lobo",    ro:"lupul", acc:"den Wolf" },
+  { id:"bear",   an:1, d:2, en:"the bear",   fr:"l'ours",    it:"l'orso",     de:"der Bär",    es:"el oso",     ro:"ursul", acc:"den Bären" },
+  { id:"mouse",  an:1, d:2, en:"the mouse",  fr:"la souris", it:"il topo",    de:"die Maus",   es:"el ratón",   ro:"șoarecele" },
+  { id:"chicken",an:1, d:1, en:"the chicken",fr:"la poule",  it:"la gallina", de:"das Huhn",   es:"la gallina", ro:"găina" },
+  { id:"lion",   an:1, d:2, en:"the lion",   fr:"le lion",   it:"il leone",   de:"der Löwe",   es:"el león",    ro:"leul", acc:"den Löwen" },
+
+  { id:"head",   d:1, en:"the head",  fr:"la tête",   it:"la testa",   de:"der Kopf",  es:"la cabeza", ro:"capul", acc:"den Kopf" },
+  { id:"foot",   d:1, en:"the foot",  fr:"le pied",   it:"il piede",   de:"der Fuß",   es:"el pie",    ro:"piciorul", acc:"den Fuß" },
+  { id:"arm",    d:1, en:"the arm",   fr:"le bras",   it:"il braccio", de:"der Arm",   es:"el brazo",  ro:"brațul", acc:"den Arm" },
+  { id:"mouth",  d:1, en:"the mouth", fr:"la bouche", it:"la bocca",   de:"der Mund",  es:"la boca",   ro:"gura", acc:"den Mund" },
+  { id:"nose",   d:1, en:"the nose",  fr:"le nez",    it:"il naso",    de:"die Nase",  es:"la nariz",  ro:"nasul" },
+  { id:"ear",    d:1, en:"the ear",   fr:"l'oreille", it:"l'orecchio", de:"das Ohr",   es:"la oreja",  ro:"urechea" },
+  { id:"hair",   d:2, en:"the hair",  fr:"les cheveux",it:"i capelli", de:"die Haare", es:"el pelo",   ro:"părul" },
+
+  { id:"shirt",  d:1, en:"the shirt", fr:"la chemise",   it:"la camicia",  de:"das Hemd",   es:"la camisa",   ro:"cămașa" },
+  { id:"shoe",   d:1, en:"the shoe",  fr:"la chaussure", it:"la scarpa",   de:"der Schuh",  es:"el zapato",   ro:"pantoful", acc:"den Schuh" },
+  { id:"hat",    d:1, en:"the hat",   fr:"le chapeau",   it:"il cappello", de:"der Hut",    es:"el sombrero", ro:"pălăria", acc:"den Hut" },
+  { id:"coat",   d:2, en:"the coat",  fr:"le manteau",   it:"il cappotto", de:"der Mantel", es:"el abrigo",   ro:"haina", acc:"den Mantel" },
+  { id:"dress",  d:1, en:"the dress", fr:"la robe",      it:"il vestito",  de:"das Kleid",  es:"el vestido",  ro:"rochia" },
+
+  { id:"morning",d:1, en:"the morning", fr:"le matin",  it:"la mattina", de:"der Morgen", es:"la mañana", ro:"dimineața", acc:"den Morgen" },
+  { id:"evening",d:1, en:"the evening", fr:"le soir",   it:"la sera",    de:"der Abend",  es:"la tarde",  ro:"seara", acc:"den Abend" },
+  { id:"week",   d:1, en:"the week",    fr:"la semaine",it:"la settimana",de:"die Woche", es:"la semana", ro:"săptămâna" },
+  { id:"month",  d:1, en:"the month",   fr:"le mois",   it:"il mese",    de:"der Monat",  es:"el mes",    ro:"luna", acc:"den Monat" },
+  { id:"year",   d:1, en:"the year",    fr:"l'année",   it:"l'anno",     de:"das Jahr",   es:"el año",    ro:"anul" },
+  { id:"hour",   d:1, en:"the hour",    fr:"l'heure",   it:"l'ora",      de:"die Stunde", es:"la hora",   ro:"ora" },
+
+  { id:"cloud",  d:1, en:"the cloud",  fr:"le nuage",  it:"la nuvola", de:"die Wolke", es:"la nube",     ro:"norul" },
+  { id:"lake",   d:2, en:"the lake",   fr:"le lac",    it:"il lago",   de:"der See",   es:"el lago",     ro:"lacul", acc:"den See" },
+  { id:"valley", d:2, en:"the valley", fr:"la vallée", it:"la valle",  de:"das Tal",   es:"el valle",    ro:"valea" },
+  { id:"desert", d:2, en:"the desert", fr:"le désert", it:"il deserto",de:"die Wüste", es:"el desierto", ro:"deșertul" },
+  { id:"beach",  d:1, en:"the beach",  fr:"la plage",  it:"la spiaggia",de:"der Strand",es:"la playa",    ro:"plaja", acc:"den Strand" },
+
+  { id:"rice",   d:1, en:"the rice",   fr:"le riz",    it:"il riso",    de:"der Reis",  es:"el arroz",    ro:"orezul", acc:"den Reis" },
+  { id:"soup",   d:1, en:"the soup",   fr:"la soupe",  it:"la zuppa",   de:"die Suppe", es:"la sopa",     ro:"supa" },
+  { id:"salad",  d:1, en:"the salad",  fr:"la salade", it:"l'insalata", de:"der Salat", es:"la ensalada", ro:"salata", acc:"den Salat" },
+  { id:"cake",   d:1, en:"the cake",   fr:"le gâteau", it:"la torta",   de:"der Kuchen",es:"el pastel",   ro:"tortul", acc:"den Kuchen" },
+  { id:"tea",    d:1, en:"the tea",    fr:"le thé",    it:"il tè",      de:"der Tee",   es:"el té",       ro:"ceaiul", acc:"den Tee" },
+  { id:"juice",  d:1, en:"the juice",  fr:"le jus",    it:"il succo",   de:"der Saft",  es:"el jugo",     ro:"sucul", acc:"den Saft" },
+
+  { id:"bed",    d:1, en:"the bed",    fr:"le lit",     it:"il letto",     de:"das Bett", es:"la cama",   ro:"patul" },
+  { id:"lamp",   d:1, en:"the lamp",   fr:"la lampe",   it:"la lampada",   de:"die Lampe",es:"la lámpara",ro:"lampa" },
+  { id:"clock",  d:1, en:"the clock",  fr:"l'horloge",  it:"l'orologio",   de:"die Uhr",  es:"el reloj",  ro:"ceasul" },
+  { id:"wall",   d:1, en:"the wall",   fr:"le mur",     it:"il muro",      de:"die Wand", es:"la pared",  ro:"peretele" },
+  { id:"roof",   d:2, en:"the roof",   fr:"le toit",    it:"il tetto",     de:"das Dach", es:"el techo",  ro:"acoperișul" },
+  { id:"floor",  d:1, en:"the floor",  fr:"le sol",     it:"il pavimento", de:"der Boden",es:"el suelo",  ro:"podeaua", acc:"den Boden" },
+  { id:"kitchen",d:1, en:"the kitchen",fr:"la cuisine", it:"la cucina",    de:"die Küche",es:"la cocina", ro:"bucătăria" },
+
+  { id:"village", d:1, en:"the village",  fr:"le village",  it:"il villaggio", de:"das Dorf",       es:"el pueblo",   ro:"satul" },
+  { id:"market",  d:1, en:"the market",   fr:"le marché",   it:"il mercato",   de:"der Markt",      es:"el mercado",  ro:"piața", acc:"den Markt" },
+  { id:"castle",  d:2, en:"the castle",   fr:"le château",  it:"il castello",  de:"das Schloss",    es:"el castillo", ro:"castelul" },
+  { id:"church",  d:1, en:"the church",   fr:"l'église",    it:"la chiesa",    de:"die Kirche",     es:"la iglesia",  ro:"biserica" },
+  { id:"hospital",d:1, en:"the hospital", fr:"l'hôpital",   it:"l'ospedale",   de:"das Krankenhaus",es:"el hospital", ro:"spitalul" },
+  { id:"station", d:2, en:"the station",  fr:"la gare",     it:"la stazione",  de:"der Bahnhof",    es:"la estación", ro:"gara", acc:"den Bahnhof" },
+  { id:"hotel",   d:1, en:"the hotel",    fr:"l'hôtel",     it:"l'hotel",      de:"das Hotel",      es:"el hotel",    ro:"hotelul" },
+  { id:"airport", d:2, en:"the airport",  fr:"l'aéroport",  it:"l'aeroporto",  de:"der Flughafen",  es:"el aeropuerto",ro:"aeroportul", acc:"den Flughafen" },
+
+  { id:"happiness",d:3, en:"the happiness",fr:"le bonheur",  it:"la felicità",  de:"das Glück",       es:"la felicidad",  ro:"fericirea" },
+  { id:"sadness",  d:3, en:"the sadness",  fr:"la tristesse",it:"la tristezza", de:"die Traurigkeit", es:"la tristeza",   ro:"tristețea" },
+  { id:"anger",    d:3, en:"the anger",    fr:"la colère",   it:"la rabbia",    de:"die Wut",         es:"la ira",        ro:"furia" },
+  { id:"wisdom",   d:3, en:"the wisdom",   fr:"la sagesse",  it:"la saggezza",  de:"die Weisheit",    es:"la sabiduría",  ro:"înțelepciunea" },
+  { id:"patience", d:3, en:"the patience", fr:"la patience", it:"la pazienza",  de:"die Geduld",      es:"la paciencia",  ro:"răbdarea" },
+  { id:"honor",    d:3, en:"the honor",    fr:"l'honneur",   it:"l'onore",      de:"die Ehre",        es:"el honor",      ro:"onoarea" },
+  { id:"pride",    d:3, en:"the pride",    fr:"la fierté",   it:"l'orgoglio",   de:"der Stolz",       es:"el orgullo",    ro:"mândria", acc:"den Stolz" },
+
+  { id:"phone",    d:1, en:"the phone",    fr:"le téléphone",  it:"il telefono", de:"das Telefon", es:"el teléfono",  ro:"telefonul" },
+  { id:"computer", d:1, en:"the computer", fr:"l'ordinateur",  it:"il computer", de:"der Computer",es:"el ordenador", ro:"calculatorul", acc:"den Computer" },
+  { id:"color",    d:1, en:"the color",    fr:"la couleur",    it:"il colore",   de:"die Farbe",   es:"el color",     ro:"culoarea" },
+  { id:"name",     d:1, en:"the name",     fr:"le nom",        it:"il nome",     de:"der Name",    es:"el nombre",    ro:"numele", acc:"den Namen" },
+  { id:"smile",    d:2, en:"the smile",    fr:"le sourire",    it:"il sorriso",  de:"das Lächeln", es:"la sonrisa",   ro:"zâmbetul" },
+  { id:"gift",     d:1, en:"the gift",     fr:"le cadeau",     it:"il regalo",   de:"das Geschenk",es:"el regalo",    ro:"cadoul" },
+  { id:"treasure", d:2, en:"the treasure", fr:"le trésor",     it:"il tesoro",   de:"der Schatz",  es:"el tesoro",    ro:"comoara", acc:"den Schatz" },
+  { id:"path",     d:2, en:"the path",     fr:"le chemin",     it:"il sentiero", de:"der Weg",     es:"el camino",    ro:"drumul", acc:"den Weg" }
 ];
 
 /* third person singular, present */
 const VERBS = [
-  { id:"eat",    en:"eats",    fr:"mange",   it:"mangia",     de:"isst",      es:"come",       ro:"mănâncă",  obj:["bread","cheese","apple"] },
-  { id:"drink",  en:"drinks",  fr:"boit",    it:"beve",       de:"trinkt",    es:"bebe",       ro:"bea",      obj:["water","wine","coffee"] },
-  { id:"read",   en:"reads",   fr:"lit",     it:"legge",      de:"liest",     es:"lee",        ro:"citește",  obj:["book","letter","paper"] },
-  { id:"write",  en:"writes",  fr:"écrit",   it:"scrive",     de:"schreibt",  es:"escribe",    ro:"scrie",    obj:["letter","book","song"] },
-  { id:"see",    en:"sees",    fr:"voit",    it:"vede",       de:"sieht",     es:"ve",         ro:"vede",     obj:["sea","sun","mountain","city","flower","dog","cat","house"] },
-  { id:"buy",    en:"buys",    fr:"achète",  it:"compra",     de:"kauft",     es:"compra",     ro:"cumpără",  obj:["bread","book","car","house","flower","coffee","paper","wine"] },
-  { id:"open",   en:"opens",   fr:"ouvre",   it:"apre",       de:"öffnet",    es:"abre",       ro:"deschide", obj:["door","window","book","letter"] },
-  { id:"close",  en:"closes",  fr:"ferme",   it:"chiude",     de:"schließt",  es:"cierra",     ro:"închide",  obj:["door","window","book"] },
-  { id:"find",   en:"finds",   fr:"trouve",  it:"trova",      de:"findet",    es:"encuentra",  ro:"găsește",  obj:["key","money","house","book","dog","cat"] },
-  { id:"want",   en:"wants",   fr:"veut",    it:"vuole",      de:"will",      es:"quiere",     ro:"vrea",     obj:["coffee","water","money","car","bread","wine","apple"] },
-  { id:"seek",   en:"seeks",   fr:"cherche", it:"cerca",      de:"sucht",     es:"busca",      ro:"caută",    obj:["key","money","dog","cat","house","book"] },
-  { id:"love",   en:"loves",   fr:"aime",    it:"ama",        de:"liebt",     es:"ama",        ro:"iubește",  obj:["sea","sun","city","night","dog","cat","school"] },
-  { id:"forget", en:"forgets", fr:"oublie",  it:"dimentica",  de:"vergisst",  es:"olvida",     ro:"uită",     obj:["key","book","letter","money","dream"] },
-  { id:"hear",   en:"hears",   fr:"entend", it:"sente",       de:"hört",      es:"oye",        ro:"aude",     obj:["song","sea","dog"] },
-  { id:"bring",  en:"brings",  fr:"apporte", it:"porta",      de:"bringt",    es:"trae",       ro:"aduce",    obj:["bread","water","coffee","book","flower","key","letter","wine"] }
+  { id:"eat",    d:1, en:"eats",    fr:"mange",   it:"mangia",     de:"isst",      es:"come",       ro:"mănâncă",  obj:["bread","cheese","apple","egg","fruit","meat","rice","soup","salad","cake"] },
+  { id:"drink",  d:1, en:"drinks",  fr:"boit",    it:"beve",       de:"trinkt",    es:"bebe",       ro:"bea",      obj:["water","wine","coffee","milk","tea","juice"] },
+  { id:"read",   d:1, en:"reads",   fr:"lit",     it:"legge",      de:"liest",     es:"lee",        ro:"citește",  obj:["book","letter","paper"] },
+  { id:"write",  d:1, en:"writes",  fr:"écrit",   it:"scrive",     de:"schreibt",  es:"escribe",    ro:"scrie",    obj:["letter","book","song"] },
+  { id:"see",    d:1, en:"sees",    fr:"voit",    it:"vede",       de:"sieht",     es:"ve",         ro:"vede",     obj:["sea","sun","mountain","city","flower","dog","cat","house","fire","snow","rain","tree","train","ship","horse","cow","wolf","bear","lion","cloud","lake","valley","desert","beach","castle","church","village"] },
+  { id:"buy",    d:1, en:"buys",    fr:"achète",  it:"compra",     de:"kauft",     es:"compra",     ro:"cumpără",  obj:["bread","book","car","house","flower","coffee","paper","wine","ring","chair","table","box","sugar","salt","glass","shirt","shoe","hat","coat","dress","phone","computer","bed","lamp","clock","gift","cake"] },
+  { id:"open",   d:1, en:"opens",   fr:"ouvre",   it:"apre",       de:"öffnet",    es:"abre",       ro:"deschide", obj:["door","window","book","letter","box"] },
+  { id:"close",  d:1, en:"closes",  fr:"ferme",   it:"chiude",     de:"schließt",  es:"cierra",     ro:"închide",  obj:["door","window","book","box"] },
+  { id:"find",   d:2, en:"finds",   fr:"trouve",  it:"trova",      de:"findet",    es:"encuentra",  ro:"găsește",  obj:["key","money","house","book","dog","cat","ring","box","phone","treasure","path"] },
+  { id:"want",   d:1, en:"wants",   fr:"veut",    it:"vuole",      de:"will",      es:"quiere",     ro:"vrea",     obj:["coffee","water","money","car","bread","wine","apple","sugar","milk","ring","phone","computer","gift","cake","tea"] },
+  { id:"seek",   d:2, en:"seeks",   fr:"cherche", it:"cerca",      de:"sucht",     es:"busca",      ro:"caută",    obj:["key","money","dog","cat","house","book"] },
+  { id:"love",   d:1, en:"loves",   fr:"aime",    it:"ama",        de:"liebt",     es:"ama",        ro:"iubește",  obj:["sea","sun","city","night","dog","cat","school"] },
+  { id:"forget", d:2, en:"forgets", fr:"oublie",  it:"dimentica",  de:"vergisst",  es:"olvida",     ro:"uită",     obj:["key","book","letter","money","dream","name"] },
+  { id:"hear",   d:2, en:"hears",   fr:"entend", it:"sente",       de:"hört",      es:"oye",        ro:"aude",     obj:["song","sea","dog"] },
+  { id:"bring",  d:2, en:"brings",  fr:"apporte", it:"porta",      de:"bringt",    es:"trae",       ro:"aduce",    obj:["bread","water","coffee","book","flower","key","letter","wine"] },
+  { id:"sing",     d:1, en:"sings",     fr:"chante",     it:"canta",       de:"singt",     es:"canta",     ro:"cântă",       obj:["song"] },
+  { id:"greet",    d:1, en:"greets",    fr:"salue",      it:"saluta",      de:"grüßt",     es:"saluda",    ro:"salută",      obj:["friend","teacher","neighbor","stranger","king","queen","sister","brother","husband","wife","doctor","farmer","soldier"] },
+  { id:"know",     d:2, en:"knows",     fr:"connaît",    it:"conosce",     de:"kennt",     es:"conoce",    ro:"cunoaște",    obj:["city","man","woman","teacher","friend","secret","truth","doctor","farmer","soldier","sister","brother","name"] },
+  { id:"keep",     d:2, en:"keeps",     fr:"garde",      it:"tiene",       de:"behält",    es:"guarda",    ro:"păstrează",   obj:["key","money","secret","promise","dream","house","ring","treasure","gift"] },
+  { id:"break",    d:2, en:"breaks",    fr:"casse",      it:"rompe",       de:"zerbricht", es:"rompe",     ro:"rupe",        obj:["window","door","mirror","key","promise","glass"] },
+  { id:"build",    d:2, en:"builds",    fr:"construit",  it:"costruisce",  de:"baut",      es:"construye", ro:"construiește",obj:["house","school","bridge","city","ship","castle","church","hospital","station","hotel","airport"] },
+  { id:"protect",  d:2, en:"protects",  fr:"protège",    it:"protegge",    de:"beschützt", es:"protege",   ro:"protejează",  obj:["child","house","city","garden","dog","cat","sister","brother","farmer","village","castle","treasure"] },
+  { id:"cross",    d:3, en:"crosses",   fr:"traverse",   it:"attraversa",  de:"überquert", es:"cruza",     ro:"traversează", obj:["street","river","sea","mountain","bridge","desert","valley"] },
+  { id:"wash",     d:1, en:"washes",    fr:"lave",       it:"lava",        de:"wäscht",    es:"lava",      ro:"spală",       obj:["hand","car","house","dog","cat","shirt","dress","coat"] },
+  { id:"paint",    d:2, en:"paints",    fr:"peint",      it:"dipinge",     de:"malt",      es:"pinta",     ro:"pictează",    obj:["door","window","house","car","wall"] }
 ];
 
 const ADVS = [
-  { id:"quickly", en:"quickly", fr:"rapidement",  it:"rapidamente", de:"schnell", es:"rápidamente", ro:"repede" },
-  { id:"slowly",  en:"slowly",  fr:"lentement",   it:"lentamente",  de:"langsam", es:"lentamente",  ro:"încet" },
-  { id:"always",  en:"always",  fr:"toujours",    it:"sempre",      de:"immer",   es:"siempre",     ro:"mereu", pre:1 },
-  { id:"today",   en:"today",   fr:"aujourd'hui", it:"oggi",        de:"heute",   es:"hoy",         ro:"azi" },
-  { id:"often",   en:"often",   fr:"souvent",     it:"spesso",      de:"oft",     es:"a menudo",    ro:"des", pre:1 },
-  { id:"again",   en:"again",   fr:"encore",      it:"ancora",      de:"wieder",  es:"otra vez",    ro:"iarăși" },
-  { id:"happily", en:"happily", fr:"joyeusement", it:"allegramente",de:"fröhlich",es:"alegremente", ro:"bucuros" },
-  { id:"here",    en:"here",    fr:"ici",         it:"qui",         de:"hier",    es:"aquí",        ro:"aici" }
+  { id:"quickly",  d:2, en:"quickly",  fr:"rapidement",  it:"rapidamente", de:"schnell",   es:"rápidamente", ro:"repede" },
+  { id:"slowly",   d:2, en:"slowly",   fr:"lentement",   it:"lentamente",  de:"langsam",   es:"lentamente",  ro:"încet" },
+  { id:"always",   d:2, en:"always",   fr:"toujours",    it:"sempre",      de:"immer",     es:"siempre",     ro:"mereu", pre:1 },
+  { id:"today",    d:1, en:"today",    fr:"aujourd'hui", it:"oggi",        de:"heute",     es:"hoy",         ro:"azi" },
+  { id:"often",    d:2, en:"often",    fr:"souvent",     it:"spesso",      de:"oft",       es:"a menudo",    ro:"des", pre:1 },
+  { id:"again",    d:1, en:"again",    fr:"encore",      it:"ancora",      de:"wieder",    es:"otra vez",    ro:"iarăși" },
+  { id:"happily",  d:2, en:"happily",  fr:"joyeusement", it:"allegramente",de:"fröhlich",  es:"alegremente", ro:"bucuros" },
+  { id:"here",     d:1, en:"here",     fr:"ici",         it:"qui",         de:"hier",      es:"aquí",        ro:"aici" },
+  { id:"rarely",   d:2, en:"rarely",   fr:"rarement",    it:"raramente",   de:"selten",    es:"raramente",   ro:"rareori", pre:1 },
+  { id:"carefully",d:2, en:"carefully",fr:"soigneusement",it:"attentamente",de:"sorgfältig",es:"cuidadosamente",ro:"cu grijă" },
+  { id:"silently", d:3, en:"silently", fr:"silencieusement",it:"silenziosamente",de:"still",es:"silenciosamente",ro:"în tăcere" },
+  { id:"suddenly", d:2, en:"suddenly", fr:"soudain",     it:"improvvisamente",de:"plötzlich",es:"de repente", ro:"brusc" },
+  { id:"there",    d:1, en:"there",    fr:"là",          it:"lì",          de:"dort",      es:"allí",        ro:"acolo" },
+  { id:"outside",  d:1, en:"outside",  fr:"dehors",      it:"fuori",       de:"draußen",   es:"afuera",      ro:"afară" },
+  { id:"together", d:2, en:"together", fr:"ensemble",    it:"insieme",     de:"zusammen",  es:"juntos",      ro:"împreună" },
+  { id:"alone",    d:2, en:"alone",    fr:"seul",        it:"da solo",     de:"allein",    es:"solo",        ro:"singur" }
 ];
 
 /* Real false friends. `lang` is the language being asked about,
@@ -446,7 +614,22 @@ const FRIENDS = [
   { w:"roman",       lang:"ro", trap:"en", right:"a novel",            wrong:["a Roman","romance","a rumour"],      note:"Romanian roman is a novel." },
   { w:"brav",        lang:"ro", trap:"en", right:"well-behaved",       wrong:["brave","boastful","strong"],         note:"Romanian brav here means well-behaved rather than brave." },
   { w:"eventually",  lang:"en", trap:"de", right:"in the end",         wrong:["possibly","immediately","regularly"],note:"English eventually is in the end. German eventuell is possibly." },
-  { w:"preservative",lang:"en", trap:"it", right:"a food additive",    wrong:["a condom","a jam","a safeguard"],    note:"English preservative is a food additive. Italian preservativo is a condom." }
+  { w:"constipado",  lang:"es", trap:"en", right:"having a cold",       wrong:["constipated","exhausted","embarrassed"], note:"Spanish constipado means having a cold. Constipated is estreñido." },
+  { w:"camera",      lang:"it", trap:"en", right:"a room",              wrong:["a camera","a corridor","a bed"],      note:"Italian camera is a room, as in a bedroom. A photo camera is una macchina fotografica." },
+  { w:"fattoria",    lang:"it", trap:"en", right:"a farm",              wrong:["a factory","a fabric shop","a warehouse"], note:"Italian fattoria is a farm. A factory is una fabbrica." },
+  { w:"confetti",    lang:"it", trap:"en", right:"sugared almonds",     wrong:["paper confetti","fireworks","party hats"], note:"Italian confetti are the sugared almonds given out at weddings. Paper confetti are coriandoli." },
+  { w:"assister",    lang:"fr", trap:"en", right:"to attend",           wrong:["to help","to insist","to persist"],  note:"French assister à means to attend. To help is aider." },
+  { w:"coin",        lang:"fr", trap:"en", right:"a corner",            wrong:["a coin","an ear of corn","a coincidence"], note:"French coin is a corner. A money coin is une pièce." },
+  { w:"fábrica",     lang:"es", trap:"en", right:"a factory",           wrong:["fabric","a fable","a facade"],        note:"Spanish fábrica is a factory. Fabric or cloth is tela." },
+  { w:"carpeta",     lang:"es", trap:"en", right:"a folder",            wrong:["a carpet","a briefcase","a notebook"], note:"Spanish carpeta is a folder. A carpet is una alfombra." },
+  { w:"Mist",        lang:"de", trap:"en", right:"manure, or rubbish",  wrong:["mist or fog","a mistake","a myth"],  note:"German Mist means manure, or colloquially rubbish. Mist or fog is der Nebel." },
+  { w:"also",        lang:"de", trap:"en", right:"so, or therefore",    wrong:["also, too","already","alone"],       note:"German also means so or therefore. Also, meaning too, is auch." },
+  { w:"magazzino",   lang:"it", trap:"en", right:"a warehouse",         wrong:["a magazine","a market","a mansion"], note:"Italian magazzino is a warehouse or storeroom. A magazine is una rivista." },
+  { w:"parenti",     lang:"it", trap:"en", right:"relatives",           wrong:["parents","grandparents","children"],note:"Italian parenti means relatives in general. Parents specifically are genitori." },
+  { w:"Rente",       lang:"de", trap:"en", right:"a pension",           wrong:["rent","a fee","interest"],           note:"German Rente is a retirement pension. Rent is die Miete." },
+  { w:"recordar",    lang:"es", trap:"en", right:"to remember",         wrong:["to record","to reconsider","to recover"], note:"Spanish recordar means to remember. To record is grabar." },
+  { w:"librairie",   lang:"fr", trap:"en", right:"a bookshop",          wrong:["a library","a bookshelf","a study"], note:"French librairie sells books. A library is une bibliothèque." },
+  { w:"actuellement",lang:"fr", trap:"en", right:"currently",           wrong:["actually","eventually","obviously"], note:"French actuellement means currently. English actually is en fait." }
 ];
 
 /* ============================================================
@@ -474,9 +657,24 @@ const TIERS = [
   { id:"brutal",   name:"Brutal",   note:"15 seconds · every language you pick",time:15, maxL:6 }
 ];
 
+const MODES = [
+  { id:"classic", name:"Classic round", note:"10 challenges · build, tag, decode, relay" },
+  { id:"blitz",   name:"Sprint · Blitz", note:"90 seconds · wrong pick costs 3s and vanishes" },
+  { id:"ladder",  name:"Sprint · Ladder", note:"30 seconds · levels of 10, harder each time" }
+];
+
+/* pool of translatable concepts for Sprint mode, tagged with a kind
+   (for picking same-kind decoys) and a difficulty 1-3 (for pacing) */
+const SPRINT_POOL = [].concat(
+  NOUNS.map((c) => ({ ...c, kind: "noun" })),
+  VERBS.map((c) => ({ ...c, kind: "verb" })),
+  ADVS.map((c) => ({ ...c, kind: "adv" }))
+);
+
 const S = {
   langs: store.get("seam.langs", []).filter((l) => LCODES.includes(l)),
   tier: store.get("seam.tier", "standard"),
+  mode: store.get("seam.mode", "classic"),
   queue: [],
   i: 0,
   score: 0,
@@ -486,7 +684,17 @@ const S = {
   timer: null,
   left: 0,
   answered: false,
-  cur: null
+  cur: null,
+  // sprint mode
+  sprintTimer: null,
+  sprintLeft: 0,
+  sprintScore: 0,
+  sprintCorrect: 0,
+  sprintAttempted: 0,
+  sprintLevel: 1,
+  sprintInLevel: 0,
+  sprintBusy: false,
+  sprintOver: false
 };
 const TOTAL = 10;
 const tier = () => TIERS.find((t) => t.id === S.tier);
@@ -577,6 +785,21 @@ function buildSetup() {
     b.onclick = () => { S.tier = t.id; store.set("seam.tier", t.id); [...tw.children].forEach((c) => c.setAttribute("aria-pressed", "false")); b.setAttribute("aria-pressed", "true"); };
     tw.append(b);
   });
+
+  const mw = $("#modes"); mw.innerHTML = "";
+  MODES.forEach((m) => {
+    const b = el("button", "tier");
+    b.setAttribute("aria-pressed", S.mode === m.id ? "true" : "false");
+    b.append(el("b", null, m.name), el("small", null, m.note));
+    b.onclick = () => {
+      S.mode = m.id; store.set("seam.mode", m.id);
+      [...mw.children].forEach((c) => c.setAttribute("aria-pressed", "false"));
+      b.setAttribute("aria-pressed", "true");
+      syncSetup();
+    };
+    mw.append(b);
+  });
+
   syncSetup();
 }
 
@@ -590,9 +813,14 @@ function syncSetup() {
   const n = S.langs.length;
   $("#count").textContent = n + " of 6";
   $("#start").disabled = n < 2;
+  $("#pressure-block").classList.toggle("hidden", S.mode !== "classic");
+  const startLabel = S.mode === "classic" ? "Start a round" : S.mode === "blitz" ? "Start Blitz" : "Start Ladder";
+  $("#start").textContent = startLabel;
   $("#setup-hint").textContent = n < 2
     ? "Pick at least two languages"
-    : n + " languages · " + TOTAL + " challenges";
+    : S.mode === "classic" ? n + " languages · " + TOTAL + " challenges"
+    : S.mode === "blitz" ? n + " languages · 90 seconds, unlimited words"
+    : n + " languages · 30 seconds · levels of 10 words";
   store.set("seam.langs", S.langs);
 }
 
@@ -1020,12 +1248,7 @@ function renderRelay() {
 /* ============================================================
    9. RESULTS
    ============================================================ */
-function endRound() {
-  stopClock();
-  screen("res");
-  $("#final").textContent = S.score;
-  $("#final-sub").textContent = S.correct + " of " + TOTAL + " challenges solved · " + tier().name;
-
+function renderBars() {
   const bars = $("#bars"); bars.innerHTML = "";
   const rows = Object.entries(S.perLang).sort((a, b) => (b[1].hit / b[1].tot) - (a[1].hit / a[1].tot));
   if (!rows.length) bars.append(el("p", "empty", "No language data this round."));
@@ -1041,6 +1264,16 @@ function endRound() {
     b.append(row, track); bars.append(b);
     requestAnimationFrame(() => { fill.style.width = pct + "%"; });
   });
+}
+
+function endRound() {
+  stopClock();
+  screen("res");
+  $("#res-eyebrow").textContent = "Round complete";
+  $("#again").textContent = "Play the same set";
+  $("#final").textContent = S.score;
+  $("#final-sub").textContent = S.correct + " of " + TOTAL + " challenges solved · " + tier().name;
+  renderBars();
 
   const lt = store.get("seam.lifetime", { rounds: 0, score: 0, best: 0 });
   lt.rounds++; lt.score += S.score; lt.best = Math.max(lt.best, S.score);
@@ -1049,12 +1282,184 @@ function endRound() {
 }
 
 /* ============================================================
+   9b. SPRINT — timed multiple-choice translation modes.
+   Blitz: one flat 90s clock, unlimited words, get as many right
+   as you can. Ladder: starts at 30s, words come in batches of
+   10 that get harder each level; the clock is never topped up,
+   so the time you saved on an easy level carries you through a
+   harder one. In both, a wrong pick doesn't end the question —
+   it costs three seconds and vanishes from the board, so you
+   keep narrowing it down until you find the real translation.
+   ============================================================ */
+const SPRINT_PENALTY = 3;
+function sprintPoints(d) { return d === 1 ? 60 : d === 2 ? 95 : 140; }
+function blitzMaxDifficulty(seen) { return seen < 8 ? 1 : seen < 20 ? 2 : 3; }
+
+function startSprint(kind) {
+  S.mode = kind; store.set("seam.mode", kind);
+  S.score = 0; S.streak = 0; S.correct = 0; S.perLang = {};
+  S.sprintScore = 0; S.sprintCorrect = 0; S.sprintAttempted = 0;
+  S.sprintLevel = 1; S.sprintInLevel = 0;
+  S.sprintBusy = false; S.sprintOver = false;
+  S.sprintLeft = kind === "blitz" ? 90 : 30;
+  screen("play");
+  startSprintClock();
+  nextSprintQuestion();
+}
+
+function sprintDenom() { return S.mode === "blitz" ? 90 : 30; }
+
+function startSprintClock() {
+  stopSprintClock();
+  const bar = $("#clock").firstElementChild;
+  $("#clock").classList.remove("warn");
+  bar.style.width = Math.max(0, (S.sprintLeft / sprintDenom()) * 100) + "%";
+  S.sprintTimer = setInterval(() => {
+    S.sprintLeft -= 0.1;
+    const p = Math.max(0, S.sprintLeft / sprintDenom());
+    bar.style.width = (p * 100) + "%";
+    if (p < 0.25) $("#clock").classList.add("warn");
+    updateSprintTopbar();
+    if (S.sprintLeft <= 0) { stopSprintClock(); S.sprintOver = true; endSprint(); }
+  }, 100);
+}
+function stopSprintClock() { if (S.sprintTimer) clearInterval(S.sprintTimer); S.sprintTimer = null; }
+
+/* an immediate time hit from a wrong pick, outside the regular tick */
+function applySprintPenalty(sec) {
+  S.sprintLeft = Math.max(0, S.sprintLeft - sec);
+  const bar = $("#clock").firstElementChild;
+  const p = Math.max(0, S.sprintLeft / sprintDenom());
+  bar.style.width = (p * 100) + "%";
+  if (p < 0.25) $("#clock").classList.add("warn");
+  updateSprintTopbar();
+  if (S.sprintLeft <= 0 && !S.sprintOver) { stopSprintClock(); S.sprintOver = true; endSprint(); }
+}
+
+function updateSprintTopbar() {
+  const secs = Math.max(0, Math.ceil(S.sprintLeft));
+  $("#prog").textContent = S.mode === "ladder"
+    ? "L" + S.sprintLevel + " · " + S.sprintInLevel + "/10 · " + secs + "s"
+    : secs + "s · " + S.sprintAttempted + " seen";
+  $("#score").textContent = S.sprintScore;
+  $("#streak").innerHTML = S.streak >= 2 ? "&times;" + streakMult().toFixed(1) + " streak" : "&nbsp;";
+}
+
+/* pads to exactly 4 option languages, guaranteeing answerLang appears once */
+function sprintSlotLangs(answerLang) {
+  const others = shuffle(S.langs.filter((l) => l !== answerLang));
+  const pad = [];
+  for (let i = 0; i < 3; i++) pad.push(others[i % others.length]);
+  return shuffle([answerLang].concat(pad));
+}
+
+function nextSprintQuestion() {
+  if (S.sprintOver) return;
+  S.sprintBusy = false;
+  S.sprintAttempted++;
+  if (S.mode === "ladder") {
+    S.sprintInLevel++;
+    if (S.sprintInLevel > 10) { S.sprintInLevel = 1; S.sprintLevel++; }
+  }
+  const maxD = S.mode === "ladder" ? Math.min(3, S.sprintLevel) : blitzMaxDifficulty(S.sprintAttempted);
+  renderSprintQuestion(maxD);
+}
+
+function renderSprintQuestion(maxD) {
+  const pool = SPRINT_POOL.filter((c) => c.d <= maxD);
+  const concept = pick(pool);
+  const sourceLang = pick(S.langs);
+  const answerLang = pick(S.langs.filter((l) => l !== sourceLang));
+  const slots = sprintSlotLangs(answerLang);
+  const decoyPool = SPRINT_POOL.filter((c) => c.kind === concept.kind && c.id !== concept.id);
+  const decoys = shuffle(decoyPool).slice(0, 3);
+  let di = 0;
+  const options = slots.map((lang) => lang === answerLang
+    ? { lang, text: concept[lang], ok: true }
+    : { lang, text: decoys[di++][lang], ok: false });
+
+  updateSprintTopbar();
+
+  const st = stageHead("Sprint · " + (S.mode === "blitz" ? "Blitz" : "Ladder"),
+    'What does <span class="q">' + concept[sourceLang] + "</span> mean?");
+
+  const card = el("div", "card");
+  const w = el("div", "sent");
+  const word = el("span", "w tinted", concept[sourceLang]);
+  word.style.setProperty("--wc", LANGS[sourceLang].color);
+  word.style.fontSize = "30px";
+  w.append(word);
+  card.append(w);
+  card.append(el("p", "eyebrow", LANGS[sourceLang].name));
+  st.append(card);
+
+  const ocard = el("div", "card");
+  ocard.append(el("p", "eyebrow", "Same word — which language got it right?"));
+  const ow = el("div", "opts");
+  options.forEach((o) => {
+    const b = el("button", "chip wide");
+    b.style.setProperty("--cc", LANGS[o.lang].color);
+    b.append(el("span", "flag"), el("span", null, o.text), el("span", "tcode", o.lang.toUpperCase()));
+    b.onclick = () => {
+      if (S.sprintOver || S.sprintBusy) return;
+      mark(answerLang, o.ok);
+      if (o.ok) {
+        S.sprintBusy = true;
+        b.classList.add("right");
+        S.sprintCorrect++; S.streak++;
+        S.sprintScore += Math.round(sprintPoints(concept.d) * streakMult());
+        updateSprintTopbar();
+        setTimeout(() => { if (!S.sprintOver) nextSprintQuestion(); }, 380);
+      } else {
+        b.onclick = null;
+        b.classList.add("wrong");
+        S.streak = 0;
+        applySprintPenalty(SPRINT_PENALTY);
+        setTimeout(() => { b.style.opacity = "0"; }, 120);
+        setTimeout(() => { if (b.parentNode) b.remove(); }, 260);
+      }
+    };
+    ow.append(b);
+  });
+  ocard.append(ow);
+  st.append(ocard);
+  st.append(el("p", "gloss", "Wrong pick? −" + SPRINT_PENALTY + "s and it's gone from the board."));
+  drawRibbon([{ lang: sourceLang }].concat(slots.map((l) => ({ lang: l }))));
+}
+
+function endSprint() {
+  stopSprintClock();
+  S.sprintOver = true;
+  screen("res");
+  const name = S.mode === "blitz" ? "Blitz" : "Ladder";
+  $("#res-eyebrow").textContent = "Sprint · " + name + " over";
+  $("#again").textContent = "Run it again";
+  $("#final").textContent = S.sprintScore;
+  let sub = S.sprintCorrect + " of " + S.sprintAttempted + " correct";
+  if (S.mode === "ladder") sub += " · reached level " + S.sprintLevel;
+  sub += " · Sprint " + name;
+  $("#final-sub").textContent = sub;
+  renderBars();
+
+  const key = "seam.lifetime." + S.mode;
+  const lt = store.get(key, { rounds: 0, best: 0, bestLevel: 0 });
+  lt.rounds++; lt.best = Math.max(lt.best, S.sprintScore);
+  if (S.mode === "ladder") lt.bestLevel = Math.max(lt.bestLevel || 0, S.sprintLevel);
+  store.set(key, lt);
+  $("#lifetime").textContent = lt.rounds + " rounds · best score " + lt.best
+    + (S.mode === "ladder" ? " · best level " + lt.bestLevel : "");
+}
+
+/* ============================================================
    10. WIRING
    ============================================================ */
-$("#start").onclick = startRound;
-$("#again").onclick = startRound;
+$("#start").onclick = () => { S.mode === "classic" ? startRound() : startSprint(S.mode); };
+$("#again").onclick = () => { S.mode === "classic" ? startRound() : startSprint(S.mode); };
 $("#reset").onclick = () => { screen("setup"); syncSetup(); };
-$("#quit").onclick = () => { stopClock(); if (S.i > 0 || S.answered) endRound(); else screen("setup"); };
+$("#quit").onclick = () => {
+  if (S.mode === "classic") { stopClock(); if (S.i > 0 || S.answered) endRound(); else screen("setup"); }
+  else { stopSprintClock(); S.sprintOver = true; if (S.sprintAttempted > 0) endSprint(); else screen("setup"); }
+};
 
 buildSetup();
 drawRibbon(null);
