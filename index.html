@@ -660,7 +660,7 @@ const TIERS = [
 const MODES = [
   { id:"classic", name:"Classic round", note:"10 challenges · build, tag, decode, relay" },
   { id:"blitz",   name:"Sprint · Blitz", note:"90 seconds · wrong pick costs 3s and vanishes" },
-  { id:"ladder",  name:"Sprint · Ladder", note:"30 seconds · levels of 10, harder each time" }
+  { id:"ladder",  name:"Sprint · Ladder", note:"30 seconds · +30s and harder each level you clear" }
 ];
 
 /* pool of translatable concepts for Sprint mode, tagged with a kind
@@ -820,7 +820,7 @@ function syncSetup() {
     ? "Pick at least two languages"
     : S.mode === "classic" ? n + " languages · " + TOTAL + " challenges"
     : S.mode === "blitz" ? n + " languages · 90 seconds, unlimited words"
-    : n + " languages · 30 seconds · levels of 10 words";
+    : n + " languages · 30 seconds · +30s per level of 10 words";
   store.set("seam.langs", S.langs);
 }
 
@@ -1285,13 +1285,15 @@ function endRound() {
    9b. SPRINT — timed multiple-choice translation modes.
    Blitz: one flat 90s clock, unlimited words, get as many right
    as you can. Ladder: starts at 30s, words come in batches of
-   10 that get harder each level; the clock is never topped up,
-   so the time you saved on an easy level carries you through a
-   harder one. In both, a wrong pick doesn't end the question —
+   10 that get harder each level; clearing a level carries over
+   whatever time you have left and adds 30 more seconds, so a
+   fast clear banks time for the harder level ahead. In both, a
+   wrong pick doesn't end the question —
    it costs three seconds and vanishes from the board, so you
    keep narrowing it down until you find the real translation.
    ============================================================ */
 const SPRINT_PENALTY = 3;
+const LADDER_LEVEL_BONUS = 30;
 function sprintPoints(d) { return d === 1 ? 60 : d === 2 ? 95 : 140; }
 function blitzMaxDifficulty(seen) { return seen < 8 ? 1 : seen < 20 ? 2 : 3; }
 
@@ -1309,16 +1311,21 @@ function startSprint(kind) {
 
 function sprintDenom() { return S.mode === "blitz" ? 90 : 30; }
 
+/* keeps the clock bar in sync with S.sprintLeft, whether it moved from
+   the regular tick, a wrong-pick penalty, or a level-clear bonus */
+function paintSprintClock() {
+  const bar = $("#clock").firstElementChild;
+  const p = Math.max(0, Math.min(1, S.sprintLeft / sprintDenom()));
+  bar.style.width = (p * 100) + "%";
+  $("#clock").classList.toggle("warn", p < 0.25);
+}
+
 function startSprintClock() {
   stopSprintClock();
-  const bar = $("#clock").firstElementChild;
-  $("#clock").classList.remove("warn");
-  bar.style.width = Math.max(0, (S.sprintLeft / sprintDenom()) * 100) + "%";
+  paintSprintClock();
   S.sprintTimer = setInterval(() => {
     S.sprintLeft -= 0.1;
-    const p = Math.max(0, S.sprintLeft / sprintDenom());
-    bar.style.width = (p * 100) + "%";
-    if (p < 0.25) $("#clock").classList.add("warn");
+    paintSprintClock();
     updateSprintTopbar();
     if (S.sprintLeft <= 0) { stopSprintClock(); S.sprintOver = true; endSprint(); }
   }, 100);
@@ -1328,10 +1335,7 @@ function stopSprintClock() { if (S.sprintTimer) clearInterval(S.sprintTimer); S.
 /* an immediate time hit from a wrong pick, outside the regular tick */
 function applySprintPenalty(sec) {
   S.sprintLeft = Math.max(0, S.sprintLeft - sec);
-  const bar = $("#clock").firstElementChild;
-  const p = Math.max(0, S.sprintLeft / sprintDenom());
-  bar.style.width = (p * 100) + "%";
-  if (p < 0.25) $("#clock").classList.add("warn");
+  paintSprintClock();
   updateSprintTopbar();
   if (S.sprintLeft <= 0 && !S.sprintOver) { stopSprintClock(); S.sprintOver = true; endSprint(); }
 }
@@ -1359,7 +1363,12 @@ function nextSprintQuestion() {
   S.sprintAttempted++;
   if (S.mode === "ladder") {
     S.sprintInLevel++;
-    if (S.sprintInLevel > 10) { S.sprintInLevel = 1; S.sprintLevel++; }
+    if (S.sprintInLevel > 10) {
+      S.sprintInLevel = 1;
+      S.sprintLevel++;
+      S.sprintLeft += LADDER_LEVEL_BONUS;
+      paintSprintClock();
+    }
   }
   const maxD = S.mode === "ladder" ? Math.min(3, S.sprintLevel) : blitzMaxDifficulty(S.sprintAttempted);
   renderSprintQuestion(maxD);
